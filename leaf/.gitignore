@@ -1,0 +1,13 @@
+*.pyc
+autodoc/
+baseline
+build/
+data/*/data/
+data/*/meta/
+models/checkpoints/
+models/metrics/*.csv
+models/sent140/embs.json
+venvleaf/
+_build/
+_templates/
+__pycache__/
