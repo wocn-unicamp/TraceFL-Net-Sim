@@ -8,3 +8,19 @@ trace_driven_simulator/data
 speed_up_eval/data
 .vscode
 output.txt
+
+leaf-sync/*.pyc
+leaf-sync/.DS_Store
+leaf-sync/.idea
+leaf-sync/build/
+leaf-sync/data/*/data
+leaf-sync/models/__pycache__/
+leaf-sync/models/*/__pycache__/
+leaf-sync/models/*/preprocess/__pycache__/
+leaf-sync/utils/__pycache__/
+leaf-sync/models/checkpoints/
+# leaf-sync/models/metrics/*.csv
+leaf-sync/models/sent140/embs.json
+leaf-sync/_build/
+leaf-sync/_templates/
+leaf-sync/autodoc/
