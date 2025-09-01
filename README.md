@@ -244,10 +244,12 @@ python -m leaf_runner.replay_with_delays --delays outputs/network_trace.csv     
 ## Licença & Citação
 
 ```
-@software{tracefl_netsim,
-  title  = {TraceFL-Net-Sim: Federated Learning Network Workload Simulation with Synchronous Rounds},
-  author = {Seu Nome et al.},
-  year   = {2025},
-  url    = {https://github.com/wocn-unicamp/TraceFL-Net-Sim}
+@inproceedings{cunha2025avaliaccao,
+  title={Avalia{\c{c}}{\~a}o de Desempenho de Aplica{\c{c}}{\~o}es de Aprendizado Federado em Redes de Acesso Compartilhadas},
+  author={Cunha, Diogo M and Guerra, Marco A and Ciceri, Oscar J and da Fonseca, Nelson LS and Astudillo, Carlos A},
+  booktitle={Workshop em Desempenho de Sistemas Computacionais e de Comunica{\c{c}}{\~a}o (WPerformance)},
+  pages={121--132},
+  year={2025},
+  organization={SBC}
 }
 ```
