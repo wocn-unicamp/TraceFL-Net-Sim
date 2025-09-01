@@ -215,6 +215,49 @@ python -m leaf_runner.replay_with_delays --delays outputs/network_trace.csv     
 ```
 
 ---
+# 📌 Como executar o script
+
+O script foi adaptado para separar **metadados** e **métricas** em pastas diferentes:
+
+- **Metadados (`meta/`)** → armazenados em `baseline/` (ou outra pasta que você indicar).
+- **Métricas (`metrics_sys.csv`, `metrics_stat.csv`)** → armazenadas em `results/` (ou outra pasta que você indicar).
+
+---
+
+## ▶️ leaf-sync: Execução padrão
+
+Se você simplesmente rodar o script .sh (paper_expiments) sem argumentos, os resultados serão organizados assim:
+
+```bash
+./run_experiment.sh
+```
+
+- Metadados em: `./baseline`
+- Métricas em: `./results`
+
+---
+
+## ⚙️ Execução personalizada
+
+Você também pode escolher manualmente as pastas de saída:
+
+```bash
+./run_experiment.sh ./baseline ./results
+# ou
+./run_experiment.sh /caminho/para/baseline /caminho/para/results
+```
+
+No exemplo acima:
+- Os **metadados** serão copiados para `/caminho/para/baseline`
+- As **métricas** serão salvas em `/caminho/para/results`
+
+---
+
+💡 Observação: É possível estender o script para gerar automaticamente um **CSV combinado por experimento** dentro da pasta `results/`, juntando as colunas de `sys_metrics` e `stat_metrics` com o mesmo sufixo. Caso queira, isso pode ser incluído diretamente no script.
+
+
+
+---
 
 ## Métricas & Saídas
 

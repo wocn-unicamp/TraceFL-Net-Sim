@@ -19,8 +19,12 @@ leaf-sync/models/*/__pycache__/
 leaf-sync/models/*/preprocess/__pycache__/
 leaf-sync/utils/__pycache__/
 leaf-sync/models/checkpoints/
-# leaf-sync/models/metrics/*.csv
 leaf-sync/models/sent140/embs.json
 leaf-sync/_build/
 leaf-sync/_templates/
 leaf-sync/autodoc/
+leaf-sync/baseline/
+
+# Permitir CSVs dentro de results/
+# Mas permite CSV dentro de leaf-sync/results/
+!leaf-sync/results/**/*.csv
