@@ -1,201 +1,215 @@
-"""Preprocesses the Shakespeare dataset for federated training.
-Copyright 2017 Google Inc.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    https://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-To run:
-  python preprocess_shakespeare.py path/to/raw/shakespeare.txt output_directory/
-The raw data can be downloaded from:
-  http://www.gutenberg.org/cache/epub/100/pg100.txt
-(The Plain Text UTF-8 file format, md5sum: 036d0f9cf7296f41165c2e6da1e52a0e)
-Note that The Comedy of Errors has a incorrect indentation compared to all the
-other plays in the file. The code below reflects that issue. To make the code
-cleaner, you could fix the indentation in the raw shakespeare file and remove
-the special casing for that play in the code below.
-Authors: loeki@google.com, mcmahan@google.com
-Disclaimer: This is not an official Google product.
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-import collections
-import json
+Preprocesses the Shakespeare dataset for federated training.
+
+Uso:
+  python preprocess_shakespeare.py path/to/raw_data.txt output_directory/
+
+Produce:
+  - output_directory/users_and_plays.json
+  - output_directory/by_play_and_character/<PLAY>_<CHAR>.txt
+"""
+
 import os
-import random
 import re
 import sys
-RANDOM_SEED = 1234
-# Regular expression to capture an actors name, and line continuation
-CHARACTER_RE = re.compile(r'^  ([a-zA-Z][a-zA-Z ]*)\. (.*)')
-CONT_RE = re.compile(r'^    (.*)')
-# The Comedy of Errors has errors in its indentation so we need to use
-# different regular expressions.
-COE_CHARACTER_RE = re.compile(r'^([a-zA-Z][a-zA-Z ]*)\. (.*)')
-COE_CONT_RE = re.compile(r'^(.*)')
+import json
+import unicodedata
+import collections
 
-def _match_character_regex(line, comedy_of_errors=False):
-    return (COE_CHARACTER_RE.match(line) if comedy_of_errors
-            else CHARACTER_RE.match(line))
+# Marcadores robustos para el texto de Gutenberg
+AUTHOR_RE = re.compile(r'by william shakespeare', re.IGNORECASE)
+END_RE    = re.compile(r'end of the project gutenberg ebook', re.IGNORECASE)
 
-def _match_continuation_regex(line, comedy_of_errors=False):
-    return (
-        COE_CONT_RE.match(line) if comedy_of_errors else CONT_RE.match(line))
+# -----------------------------------------------------------
+# Normalización de texto para evitar caracteres fuera del vocabulario (índices -1)
+# -----------------------------------------------------------
+def _normalize_snippet(s: str) -> str:
+    # Comillas curvas → rectas
+    s = s.replace('’', "'").replace('‘', "'")
+    s = s.replace('“', '"').replace('”', '"')
+    # Guiones largos → guiones simples
+    s = s.replace('—', '-').replace('–', '-').replace('•', '-')
+    # NBSP → espacio normal
+    s = s.replace('\u00A0', ' ')
+    # Normalización Unicode
+    s = unicodedata.normalize('NFKC', s)
+    # Mantener ASCII imprimible
+    s = ''.join(ch if 32 <= ord(ch) < 127 else ' ' for ch in s)
+    # Colapsar espacios múltiples
+    s = re.sub(r'\s+', ' ', s)
+    return s.strip()
 
+# -----------------------------------------------------------
+# Parseo del texto completo → lista de obras con parlamentos por personaje
+# -----------------------------------------------------------
 def _split_into_plays(shakespeare_full):
-    """Splits the full data by play."""
-    # List of tuples (play_name, dict from character to list of lines)
+    """
+    Devuelve:
+      plays: [(title, {CHAR: [linea, ...], ...}), ...]
+      discarded_lines: [str, ...] (solo informativo)
+    """
     plays = []
-    discarded_lines = []  # Track discarded lines.
-    slines = shakespeare_full.splitlines(True)[1:]
+    discarded_lines = []
 
-    # skip contents, the sonnets, and all's well that ends well
-    author_count = 0
-    start_i = 0
-    for i, l in enumerate(slines):
-        if 'by William Shakespeare' in l:
-            author_count += 1
-        if author_count == 2:
-            start_i = i - 5
-            break
-    slines = slines[start_i:]
+    slines = shakespeare_full.splitlines(True)  # conservar saltos
+
+    # Cortar encabezado hasta la 1ª aparición de "by William Shakespeare"
+    author_hits = [i for i, l in enumerate(slines) if AUTHOR_RE.search(l)]
+    if author_hits:
+        start_i = max(author_hits[0] - 7, 0)
+        slines = slines[start_i:]
 
     current_character = None
     comedy_of_errors = False
+    characters = None
+    title = None
+
     for i, line in enumerate(slines):
-        # This marks the end of the plays in the file.
-        if i > 124195 - start_i:
+        # Fin del libro (marcador estándar de Gutenberg)
+        if END_RE.search(line):
             break
-        # This is a pretty good heuristic for detecting the start of a new play:
-        if 'by William Shakespeare' in line:
+
+        # Heurística de inicio de nueva obra
+        if AUTHOR_RE.search(line):
+            # cerrar obra anterior (si existía y tenía parlamentos)
+            if characters:
+                # filtrar obras sin parlamentos
+                if any(len(v) > 0 for v in characters.values()):
+                    plays.append((title, characters))
+
+            # nueva obra
             current_character = None
             characters = collections.defaultdict(list)
-            # The title will be 2, 3, 4, 5, 6, or 7 lines above "by William Shakespeare".
-            if slines[i - 2].strip():
-                title = slines[i - 2]
-            elif slines[i - 3].strip():
-                title = slines[i - 3]
-            elif slines[i - 4].strip():
-                title = slines[i - 4]
-            elif slines[i - 5].strip():
-                title = slines[i - 5]
-            elif slines[i - 6].strip():
-                title = slines[i - 6]
-            else:
-                title = slines[i - 7]
-            title = title.strip()
 
-            assert title, (
-                'Parsing error on line %d. Expecting title 2 or 3 lines above.' %
-                i)
-            comedy_of_errors = (title == 'THE COMEDY OF ERRORS')
-            # Degenerate plays are removed at the end of the method.
-            plays.append((title, characters))
+            # el título suele estar unas líneas arriba del "by William Shakespeare"
+            title_candidate = ""
+            for back in (2, 3, 4, 5, 6, 7):
+                j = i - back
+                if j >= 0:
+                    t = slines[j].strip()
+                    if t:
+                        title_candidate = t
+                        break
+            title = title_candidate if title_candidate else f"UNKNOWN_PLAY_{len(plays)}"
+            comedy_of_errors = (title.strip().upper() == 'THE COMEDY OF ERRORS')
             continue
-        match = _match_character_regex(line, comedy_of_errors)
-        if match:
-            character, snippet = match.group(1), match.group(2)
-            # Some character names are written with multiple casings, e.g., SIR_Toby
-            # and SIR_TOBY. To normalize the character names, we uppercase each name.
-            # Note that this was not done in the original preprocessing and is a
-            # recent fix.
-            character = character.upper()
+
+        # Línea de personaje (permitir 0–4 espacios antes de "NAME. texto")
+        m = re.match(r'^\s{0,4}([A-Za-z][A-Za-z ]*)\. (.*)', line)
+        if m and characters is not None:
+            character, snippet = m.group(1), m.group(2)
+            character = character.upper().strip()
+            # evitar “ACT I/II...” como personaje en Comedy of Errors (compatibilidad)
             if not (comedy_of_errors and character.startswith('ACT ')):
-                characters[character].append(snippet)
+                characters[character].append(_normalize_snippet(snippet))
                 current_character = character
-                continue
             else:
                 current_character = None
-                continue
-        elif current_character:
-            match = _match_continuation_regex(line, comedy_of_errors)
-            if match:
-                if comedy_of_errors and match.group(1).startswith('<'):
+            continue
+
+        # Continuación de parlamento (≥4 espacios)
+        if current_character and characters is not None:
+            m2 = re.match(r'^\s{4,}(.*)', line)
+            if m2:
+                snip = m2.group(1)
+                # caso especial del original
+                if comedy_of_errors and snip.startswith('<'):
                     current_character = None
                     continue
-                else:
-                    characters[current_character].append(match.group(1))
-                    continue
-        # Didn't consume the line.
-        line = line.strip()
-        if line and i > 2646:
-            # Before 2646 are the sonnets, which we expect to discard.
-            discarded_lines.append('%d:%s' % (i, line))
-    # Remove degenerate "plays".
-    return [play for play in plays if len(play[1]) > 1], discarded_lines
-
-def _remove_nonalphanumerics(filename):
-    return re.sub('\\W+', '_', filename)
-
-def play_and_character(play, character):
-    return _remove_nonalphanumerics((play + '_' + character).replace(' ', '_'))
-
-def _get_train_test_by_character(plays, test_fraction=0.2):
-    """
-      Splits character data into train and test sets.
-      if test_fraction <= 0, returns {} for all_test_examples
-      plays := list of (play, dict) tuples where play is a string and dict
-      is a dictionary with character names as keys
-    """
-    skipped_characters = 0
-    all_train_examples = collections.defaultdict(list)
-    all_test_examples = collections.defaultdict(list)
-
-    def add_examples(example_dict, example_tuple_list):
-        for play, character, sound_bite in example_tuple_list:
-            example_dict[play_and_character(
-                play, character)].append(sound_bite)
-
-    users_and_plays = {}
-    for play, characters in plays:
-        curr_characters = list(characters.keys())
-        for c in curr_characters:
-            users_and_plays[play_and_character(play, c)] = play
-        for character, sound_bites in characters.items():
-            examples = [(play, character, sound_bite)
-                        for sound_bite in sound_bites]
-            if len(examples) <= 2:
-                skipped_characters += 1
-                # Skip characters with fewer than 2 lines since we need at least one
-                # train and one test line.
+                characters[current_character].append(_normalize_snippet(snip))
                 continue
-            train_examples = examples
-            if test_fraction > 0:
-                num_test = max(int(len(examples) * test_fraction), 1)
-                train_examples = examples[:-num_test]
-                test_examples = examples[-num_test:]
-                assert len(test_examples) == num_test
-                assert len(train_examples) >= len(test_examples)
-                add_examples(all_test_examples, test_examples)
-            add_examples(all_train_examples, train_examples)
-    return users_and_plays, all_train_examples, all_test_examples
 
+        # Líneas que no clasifican (solo para log opcional)
+        ls = line.strip()
+        if ls:
+            discarded_lines.append(f'{i}:{ls}')
+
+    # cerrar última obra
+    if characters:
+        if any(len(v) > 0 for v in characters.values()):
+            plays.append((title, characters))
+
+    # filtrar obras sin parlamentos útiles
+    plays = [(t, ch) for (t, ch) in plays if len(ch) > 1]
+    return plays, discarded_lines
+
+# -----------------------------------------------------------
+# Convertir plays → ejemplos por personaje y diccionario users_and_plays
+# -----------------------------------------------------------
+def _sanitize_name(s: str) -> str:
+    s = _normalize_snippet(s)
+    s = re.sub(r'[^A-Za-z0-9]+', '_', s).strip('_')
+    return s
+
+def _get_train_test_by_character(plays, test_fraction=-1.0):
+    """
+    Crea:
+      users_and_plays: { "<PLAY>_<CHAR>": "<PLAY>", ... }
+      all_examples:    { "<PLAY>_<CHAR>": [ "texto...", ... ] }
+      test_examples:   {} (no se usa aquí; test_fraction=-1.0)
+    """
+    users_and_plays = {}
+    all_examples = {}
+    test_examples = {}
+
+    for (title, characters) in plays:
+        play_name = _sanitize_name(title)
+        for char, bites in characters.items():
+            if not bites:
+                continue
+            user = f"{play_name}_{_sanitize_name(char)}"
+            # juntar parlamentos en “pasajes” (1 línea por parlamento normalizado)
+            examples = [ln for ln in (bites or []) if ln]
+            if not examples:
+                continue
+            users_and_plays[user] = play_name
+            all_examples[user] = examples
+
+    return users_and_plays, all_examples, test_examples
+
+# -----------------------------------------------------------
+# Escritura de archivos por personaje
+# -----------------------------------------------------------
 def _write_data_by_character(examples, output_directory):
-    """Writes a collection of data files by play & character."""
-    if not os.path.exists(output_directory):
-        os.makedirs(output_directory)
+    """Escribe un .txt por usuario (<PLAY>_<CHAR>.txt) con sus parlamentos."""
+    os.makedirs(output_directory, exist_ok=True)
     for character_name, sound_bites in examples.items():
         filename = os.path.join(output_directory, character_name + '.txt')
-        with open(filename, 'w') as output:
+        with open(filename, 'w', encoding='utf-8') as output:
             for sound_bite in sound_bites:
                 output.write(sound_bite + '\n')
 
+# -----------------------------------------------------------
+# Entry point
+# -----------------------------------------------------------
 def main(argv):
+    if len(argv) < 2:
+        print("Uso: python preprocess_shakespeare.py <raw_data.txt> <output_dir>", file=sys.stderr)
+        sys.exit(1)
+
     print('Splitting .txt data between users')
     input_filename = argv[0]
-    with open(input_filename, 'r') as input_file:
+    output_directory = argv[1]
+
+    with open(input_filename, 'r', encoding='utf-8', errors='ignore') as input_file:
         shakespeare_full = input_file.read()
+
     plays, discarded_lines = _split_into_plays(shakespeare_full)
     print('Discarded %d lines' % len(discarded_lines))
-    users_and_plays, all_examples, _ = _get_train_test_by_character(plays, test_fraction=-1.0)
-    output_directory = argv[1]
-    with open(os.path.join(output_directory, 'users_and_plays.json'), 'w') as ouf:
+
+    users_and_plays, all_examples, _ = _get_train_test_by_character(
+        plays, test_fraction=-1.0
+    )
+
+    with open(os.path.join(output_directory, 'users_and_plays.json'), 'w', encoding='utf-8') as ouf:
         json.dump(users_and_plays, ouf)
-    _write_data_by_character(all_examples,
-                             os.path.join(output_directory,
-                                          'by_play_and_character/'))
+
+    _write_data_by_character(
+        all_examples,
+        os.path.join(output_directory, 'by_play_and_character/')
+    )
 
 if __name__ == '__main__':
     main(sys.argv[1:])

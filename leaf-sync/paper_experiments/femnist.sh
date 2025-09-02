@@ -128,20 +128,20 @@ echo "Métricas SYS en:  ${results_dir}/sys"
 echo "Métricas STAT en: ${results_dir}/stat"
 echo "Invoca: ${0} <dir_metadatos> <dir_metricas>  para cambiar rutas"
 
-# Run minibatch SGD experiments
-for val_pair in "${minibatch_vals[@]}"; do
-  clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
-  minibatch_percentage="$(echo ${val_pair} | cut -d' ' -f2)"
-  echo "Running Minibatch experiment with fraction ${minibatch_percentage} and ${clients_per_round} clients"
-  run_minibatch "${clients_per_round}" "${minibatch_percentage}"
-done
+# # Run minibatch SGD experiments
+# for val_pair in "${minibatch_vals[@]}"; do
+#   clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
+#   minibatch_percentage="$(echo ${val_pair} | cut -d' ' -f2)"
+#   echo "Running Minibatch experiment with fraction ${minibatch_percentage} and ${clients_per_round} clients"
+#   run_minibatch "${clients_per_round}" "${minibatch_percentage}"
+# done
 
 # Run FedAvg experiments
-# for val_pair in "${fedavg_vals[@]}"; do
-#   clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
-#   num_epochs="$(echo ${val_pair} | cut -d' ' -f2)"
-#   echo "Running FedAvg: epochs=${num_epochs}, clients=${clients_per_round}"
-#   run_fedavg "${clients_per_round}" "${num_epochs}"
-# done
+for val_pair in "${fedavg_vals[@]}"; do
+  clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
+  num_epochs="$(echo ${val_pair} | cut -d' ' -f2)"
+  echo "Running FedAvg: epochs=${num_epochs}, clients=${clients_per_round}"
+  run_fedavg "${clients_per_round}" "${num_epochs}"
+done
 
 popd >/dev/null
