@@ -23,7 +23,7 @@ leaf-sync/models/sent140/embs.json
 leaf-sync/_build/
 leaf-sync/_templates/
 leaf-sync/autodoc/
-leaf-sync/baseline/
+# leaf-sync/baseline/
 
 # Permitir CSVs dentro de results/
 # Mas permite CSV dentro de leaf-sync/results/
