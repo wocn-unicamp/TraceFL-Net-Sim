@@ -3,8 +3,8 @@ import numpy as np
 import os
 from collections import defaultdict
 # To fix the problem of shuffling tuple data in batch_data
-# (causing error in Minibatch experiments)
-from typing import Dict, Iterable, Tuple, Any
+# (causing error in Minibatch experiments) 
+from typing import Dict, Iterable, Tuple, Any # new imports for type hints
 
 # New implementation of batch_data
 def batch_data(
