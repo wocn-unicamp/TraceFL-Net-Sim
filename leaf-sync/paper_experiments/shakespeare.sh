@@ -19,10 +19,12 @@ results_dir="${2:-${LEAFSYNC_DIR}/results}"     # métricas (tendrá subcarpetas
 
 split_seed="1549786796"
 sampling_seed="1549786595"
-num_rounds="60"
+num_rounds="20"
 
-fedavg_lr="0.004"
-declare -a fedavg_vals=("5 1")
+fedavg_lr="0.008"
+# fedavg_lr="0.004"
+
+declare -a fedavg_vals=("10 1")
 # minibatch_lr="0.06"
 # declare -a minibatch_vals=( "30 0.1" "30 0.2" "30 0.5" "30 0.8" )
 
@@ -119,6 +121,7 @@ function run_fedavg() {
       --num-rounds "${num_rounds}" \
       --clients-per-round "${clients_per_round}" \
       --num-epochs "${num_epochs}" \
+      --eval-every 2 \
       -lr "${fedavg_lr}"
   popd >/dev/null
 
