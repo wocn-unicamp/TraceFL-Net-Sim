@@ -2,28 +2,55 @@ import json
 import numpy as np
 import os
 from collections import defaultdict
+# To fix the problem of shuffling tuple data in batch_data
+# (causing error in Minibatch experiments)
+from typing import Dict, Iterable, Tuple, Any
+
+# New implementation of batch_data
+def batch_data(
+    data: Dict[str, Iterable],
+    batch_size: int,
+    seed: int
+) -> Iterable[Tuple[np.ndarray, np.ndarray]]:
+    """
+    data: {'x': array/list/tuple, 'y': array/list/tuple}
+    Gera batches alinhados (x, y) de tamanho batch_size.
+    Não modifica data in-place e funciona mesmo se x/y forem tuple.
+    """
+    x = np.asarray(data['x'])
+    y = np.asarray(data['y'])
+    n = len(x)
+    assert len(y) == n, "x e y devem ter o mesmo comprimento"
+
+    rng = np.random.RandomState(seed)
+    idx = rng.permutation(n)  # índices embaralhados
+
+    for start in range(0, n, batch_size):
+        batch_idx = idx[start:start + batch_size]
+        yield x[batch_idx], y[batch_idx]
 
 
-def batch_data(data, batch_size, seed):
-    '''
-    data is a dict := {'x': [numpy array], 'y': [numpy array]} (on one client)
-    returns x, y, which are both numpy array of length: batch_size
-    '''
-    data_x = data['x']
-    data_y = data['y']
 
-    # randomly shuffle data
-    np.random.seed(seed)
-    rng_state = np.random.get_state()
-    np.random.shuffle(data_x)
-    np.random.set_state(rng_state)
-    np.random.shuffle(data_y)
+# def batch_data(data, batch_size, seed):
+#     '''
+#     data is a dict := {'x': [numpy array], 'y': [numpy array]} (on one client)
+#     returns x, y, which are both numpy array of length: batch_size
+#     '''
+#     data_x = data['x']
+#     data_y = data['y']
 
-    # loop through mini-batches
-    for i in range(0, len(data_x), batch_size):
-        batched_x = data_x[i:i+batch_size]
-        batched_y = data_y[i:i+batch_size]
-        yield (batched_x, batched_y)
+#     # randomly shuffle data
+#     np.random.seed(seed)
+#     rng_state = np.random.get_state()
+#     np.random.shuffle(data_x)
+#     np.random.set_state(rng_state)
+#     np.random.shuffle(data_y)
+
+#     # loop through mini-batches
+#     for i in range(0, len(data_x), batch_size):
+#         batched_x = data_x[i:i+batch_size]
+#         batched_y = data_y[i:i+batch_size]
+#         yield (batched_x, batched_y)
 
 
 def read_dir(data_dir):
