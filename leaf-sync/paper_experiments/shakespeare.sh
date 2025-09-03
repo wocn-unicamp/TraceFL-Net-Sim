@@ -17,14 +17,22 @@ METRICS_DIR="${MODELS_DIR}/metrics"
 output_dir="${1:-${LEAFSYNC_DIR}/baseline}"     # metadatos
 results_dir="${2:-${LEAFSYNC_DIR}/results}"     # métricas (tendrá subcarpetas sys/ y stat/)
 
-split_seed="1549786796"
-sampling_seed="1549786595"
-num_rounds="20"
+# split_seed=""
+# sampling_seed=""
 
-fedavg_lr="0.008"
+# split_seed="1549786796"
+# sampling_seed="1549786595"
+
+
+split_seed="0"
+sampling_seed="0"
+
+num_rounds="50"
+
+fedavg_lr="0.08"
 # fedavg_lr="0.004"
 
-declare -a fedavg_vals=("10 1")
+declare -a fedavg_vals=("8 1") # (num_clients num_epochs)
 # minibatch_lr="0.06"
 # declare -a minibatch_vals=( "30 0.1" "30 0.2" "30 0.5" "30 0.8" )
 
@@ -102,7 +110,8 @@ function preprocess_shakespeare() {
         "${DATASET_DIR}/data/sampled_data"
   # Execução exatamente como você indicou:
   pushd "${UTILS_DIR}" >/dev/null
-    bash -x ./preprocess.sh --name shakespeare -s niid --sf 1.0 -k 0 -tf 0.8 -t sample --smplseed "${sampling_seed}" --spltseed "${split_seed}"
+    # bash -x ./preprocess.sh --name shakespeare -s niid --sf 1.0 -k 0 -tf 0.8 -t sample --smplseed "${sampling_seed}" --spltseed "${split_seed}"
+    bash -x ./preprocess.sh --name shakespeare -s niid --sf 0.05 -k 64 -tf 0.9 -t sample  --smplseed "${sampling_seed}" --spltseed "${split_seed}" # same configuration as Leaf paper 
   popd >/dev/null
 
   # Checagem rápida
@@ -121,7 +130,7 @@ function run_fedavg() {
       --num-rounds "${num_rounds}" \
       --clients-per-round "${clients_per_round}" \
       --num-epochs "${num_epochs}" \
-      --eval-every 2 \  # eval cada 2 rounds to save model metrics
+      --eval-every 2 \
       -lr "${fedavg_lr}"
   popd >/dev/null
 
