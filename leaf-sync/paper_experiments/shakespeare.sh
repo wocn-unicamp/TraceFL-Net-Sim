@@ -17,19 +17,19 @@ METRICS_DIR="${MODELS_DIR}/metrics"
 output_dir="${1:-${LEAFSYNC_DIR}/baseline}"     # metadatos
 results_dir="${2:-${LEAFSYNC_DIR}/results}"     # métricas (tendrá subcarpetas sys/ y stat/)
 
-# split_seed=""
-# sampling_seed=""
+split_seed=""
+sampling_seed=""
 
 # split_seed="1549786796"
 # sampling_seed="1549786595"
 
 
-split_seed="0"
-sampling_seed="0"
+# split_seed="0"
+# sampling_seed="0"
 
 num_rounds="50"
 
-fedavg_lr="0.6"
+fedavg_lr="0.8"
 # fedavg_lr="0.004"
 
 declare -a fedavg_vals=("8 1") # (num_clients num_epochs)
