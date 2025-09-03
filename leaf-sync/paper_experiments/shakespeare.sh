@@ -121,7 +121,7 @@ function run_fedavg() {
       --num-rounds "${num_rounds}" \
       --clients-per-round "${clients_per_round}" \
       --num-epochs "${num_epochs}" \
-      --eval-every 2 \
+      --eval-every 2 \  # eval cada 2 rounds to save model metrics
       -lr "${fedavg_lr}"
   popd >/dev/null
 
