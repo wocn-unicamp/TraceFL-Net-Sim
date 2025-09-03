@@ -29,7 +29,7 @@ sampling_seed="0"
 
 num_rounds="50"
 
-fedavg_lr="0.08"
+fedavg_lr="0.6"
 # fedavg_lr="0.004"
 
 declare -a fedavg_vals=("8 1") # (num_clients num_epochs)
@@ -110,8 +110,9 @@ function preprocess_shakespeare() {
         "${DATASET_DIR}/data/sampled_data"
   # Execução exatamente como você indicou:
   pushd "${UTILS_DIR}" >/dev/null
-    # bash -x ./preprocess.sh --name shakespeare -s niid --sf 1.0 -k 0 -tf 0.8 -t sample --smplseed "${sampling_seed}" --spltseed "${split_seed}"
-    bash -x ./preprocess.sh --name shakespeare -s niid --sf 0.05 -k 64 -tf 0.9 -t sample  --smplseed "${sampling_seed}" --spltseed "${split_seed}" # same configuration as Leaf paper 
+    # bash -x ./preprocess.sh --name shakespeare -s niid --sf 1.0 -k 64 -tf 0.8 -t sample --smplseed "${sampling_seed}" --spltseed "${split_seed}"
+    # bash -x ./preprocess.sh --name shakespeare -s niid --sf 1.0x -k 64 -tf 0.9 -t sample  --smplseed "${sampling_seed}" --spltseed "${split_seed}" # same configuration as Leaf paper 
+     bash -x ./preprocess.sh --name shakespeare -s niid --sf 1.0 -k 0 -t sample -tf 0.8
   popd >/dev/null
 
   # Checagem rápida
