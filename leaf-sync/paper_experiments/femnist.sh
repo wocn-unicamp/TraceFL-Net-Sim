@@ -9,10 +9,11 @@ results_dir="${2:-./results}"     # métricas (tendrá subcarpetas sys/ y stat/)
 
 split_seed="1549786796"
 sampling_seed="1549786595"
-num_rounds="60"
+num_rounds="100"
 
 fedavg_lr="0.004"
 declare -a fedavg_vals=("3 1" "5 1" "7 1")
+
 
 minibatch_lr="0.06"
 declare -a minibatch_vals=( "3 1" "3 0.1" "5 1" )
