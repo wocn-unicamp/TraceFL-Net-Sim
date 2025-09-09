@@ -197,7 +197,7 @@ else:
                 indices = [j for j in range(curr_num_samples)]
                 if args.name in ['shakespeare']:
                     train_indices = [i for i in range(num_train_samples)]
-                    test_indices = [i for i in range(num_train_samples + 80 - 1, curr_num_samples)] # last 30 samples for testing (iniallty was 80)
+                    test_indices = [i for i in range(num_train_samples + 30 - 1, curr_num_samples)] # last 30 samples for testing (iniallty was 80)
                     # train_indices = rng.sample(indices, num_train_samples)
                     # test_indices = [i for i in range(curr_num_samples) if i not in train_indices]
                 else:

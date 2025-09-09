@@ -1,46 +1,59 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SHK_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-RAW_DIR="${SHK_DIR}/data/raw_data"
-OUT_FILE="${RAW_DIR}/raw_data.txt"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+OUT_DIR="${SCRIPT_DIR}/../data/raw_data"
+mkdir -p "${OUT_DIR}"
 
-mkdir -p "${RAW_DIR}"
+TARGET="${OUT_DIR}/raw_data.txt"
 
-if command -v curl >/dev/null 2>&1; then
-  DOWNLOAD() { curl -fL "$1" -o "$2"; }
-elif command -v wget >/dev/null 2>&1; then
-  DOWNLOAD() { wget -qO "$2" "$1"; }
-else
-  echo "[ERRO] Nem 'curl' nem 'wget' encontrados." >&2
-  exit 1
+# Idempotência
+if [[ -s "${TARGET}" ]]; then
+  echo "[get_data] '${TARGET}' já existe — pulando download."
+  exit 0
 fi
 
-# Coloque 'pg100.txt' primeiro (mais compatível com o parser original)
-URLS=(
+# Preferir o ZIP antigo; fallback para TXT modernos
+ZIP_URL="https://mirror.ossplanet.net/mirror/gutenberg/1/0/100/old/1994-01-100.zip"
+FALLBACK_TXT_URLS=(
   "https://www.gutenberg.org/cache/epub/100/pg100.txt"
   "https://www.gutenberg.org/files/100/100-0.txt"
+  "https://www.gutenberg.org/files/100/100.txt"
 )
 
-echo ">>> Baixando Shakespeare (Project Gutenberg) para: ${OUT_FILE}"
-rm -f "${OUT_FILE}"
+download_zip_and_extract() {
+  local url="$1"
+  echo "[get_data] tentando ZIP antigo: $url"
+  local tmpzip="${OUT_DIR}/_tmp_1994-01-100.zip"
+  rm -f "${tmpzip}"
+  curl -fL --retry 3 --retry-delay 2 "$url" -o "${tmpzip}" || return 1
+  unzip -o "${tmpzip}" -d "${SCRIPT_DIR}" >/dev/null
+  rm -f "${tmpzip}"
+  mv -f "${SCRIPT_DIR}/100.txt" "${TARGET}"
+  echo "[get_data] salvo em ${TARGET}"
+  return 0
+}
 
-ok=false
-for url in "${URLS[@]}"; do
-  echo "Tentando: ${url}"
-  if DOWNLOAD "${url}" "${OUT_FILE}"; then
-    if [[ -s "${OUT_FILE}" ]]; then
-      ok=true
-      echo "OK: download concluído."
-      break
-    fi
+download_txt() {
+  local url="$1"
+  echo "[get_data] tentando TXT: $url"
+  curl -fL --retry 3 --retry-delay 2 "$url" -o "${TARGET}.part" || return 1
+  mv "${TARGET}.part" "${TARGET}"
+  echo "[get_data] salvo em ${TARGET}"
+  return 0
+}
+
+# 1) ZIP antigo primeiro
+if download_zip_and_extract "${ZIP_URL}"; then
+  exit 0
+fi
+
+# 2) Fallbacks modernos
+for u in "${FALLBACK_TXT_URLS[@]}"; do
+  if download_txt "$u"; then
+    exit 0
   fi
 done
 
-if [[ "${ok}" != true ]]; then
-  echo "[ERRO] Não foi possível obter o texto de Shakespeare." >&2
-  exit 1
-fi
-
-echo "Arquivo pronto: ${OUT_FILE}"
+echo "[get_data] falha ao obter Shakespeare (#100)." >&2
+exit 1
