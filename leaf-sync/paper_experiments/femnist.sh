@@ -9,15 +9,19 @@ results_dir="${2:-./results}"     # métricas (tendrá subcarpetas sys/ y stat/)
 
 split_seed="1549786796"
 sampling_seed="1549786595"
-num_rounds="100"
+num_rounds="500"
+eval_every="20"
+
+
 
 fedavg_lr="0.004"
-declare -a fedavg_vals=("3 1" "5 1" "7 1")
+declare -a fedavg_vals=("5 1" "10 1" "30 1" "50 1") # (num_clients num_epochs)
+# declare -a fedavg_vals=("5 1") # (num_clients num_epochs)
 
 
 minibatch_lr="0.06"
-declare -a minibatch_vals=( "3 1" "3 0.1" "5 1" )
-
+declare -a minibatch_vals=( "3 1" "3 0.1" "5 1" ) # (num_clients minibatch_fraction)
+# declare -a minibatch_vals=("5 0.1") 
 ###################### Functions ###################################
 
 # Mueve un archivo si existe y lo renombra con sufijo
@@ -78,6 +82,7 @@ function run_fedavg() {
       --num-rounds "${num_rounds}" \
       --clients-per-round "${clients_per_round}" \
       --num-epochs "${num_epochs}" \
+      --eval-every "${eval_every}" \
       -lr "${fedavg_lr}"
   popd >/dev/null
 
@@ -93,6 +98,7 @@ function run_minibatch() {
       --minibatch "${minibatch_percentage}" \
       --num-rounds "${num_rounds}" \
       --clients-per-round "${clients_per_round}" \
+      --eval-every "${eval_every}" \
       -lr "${minibatch_lr}"
   popd >/dev/null
 
@@ -129,13 +135,13 @@ echo "Métricas SYS en:  ${results_dir}/sys"
 echo "Métricas STAT en: ${results_dir}/stat"
 echo "Invoca: ${0} <dir_metadatos> <dir_metricas>  para cambiar rutas"
 
-# # Run minibatch SGD experiments
-# for val_pair in "${minibatch_vals[@]}"; do
-#   clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
-#   minibatch_percentage="$(echo ${val_pair} | cut -d' ' -f2)"
-#   echo "Running Minibatch experiment with fraction ${minibatch_percentage} and ${clients_per_round} clients"
-#   run_minibatch "${clients_per_round}" "${minibatch_percentage}"
-# done
+# Run minibatch SGD experiments
+for val_pair in "${minibatch_vals[@]}"; do
+  clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
+  minibatch_percentage="$(echo ${val_pair} | cut -d' ' -f2)"
+  echo "Running Minibatch experiment with fraction ${minibatch_percentage} and ${clients_per_round} clients"
+  run_minibatch "${clients_per_round}" "${minibatch_percentage}"
+done
 
 # Run FedAvg experiments
 for val_pair in "${fedavg_vals[@]}"; do
