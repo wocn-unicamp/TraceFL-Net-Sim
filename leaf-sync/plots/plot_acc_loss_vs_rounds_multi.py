@@ -4,14 +4,22 @@ import matplotlib.pyplot as plt
 
 # Pasta e lista de arquivos-base (com ou sem .csv)
 folder_path = "../results/stat/"
+
+
+alg = "minibatch"  # Pode ser "fedavg" ou "minibatch"
+
+
+file_base = "stat_metrics_" + alg + "_"
+
 file_bases = [
-    "stat_metrics_minibatch_c_3_mb_0.1",
     "stat_metrics_minibatch_c_5_mb_1",
-    "stat_metrics_minibatch_c_3_mb_1",
+    "stat_metrics_minibatch_c_10_mb_1",
+    "stat_metrics_minibatch_c_30_mb_1",
+    "stat_metrics_minibatch_c_50_mb_1"
 ]
 
 # Linestyles diferentes para cada arquivo (cores ficam a cargo do matplotlib)
-linestyles = ["-", "--", ":"]
+linestyles = ["-", "--", ":", "-."]
 
 def ensure_csv(path_base: str) -> str:
     return path_base if path_base.endswith(".csv") else path_base + ".csv"
