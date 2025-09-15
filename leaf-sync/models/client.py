@@ -11,34 +11,81 @@ class Client:
         self.train_data = train_data
         self.eval_data = eval_data
 
-    def train(self, num_epochs=1, batch_size=10, minibatch=None):
-        """Trains on self.model using the client's train_data.
+    # def train(self, num_epochs=1, batch_size=10, minibatch=None):
+    #     """Trains on self.model using the client's train_data.
 
-        Args:
-            num_epochs: Number of epochs to train. Unsupported if minibatch is provided (minibatch has only 1 epoch)
-            batch_size: Size of training batches.
-            minibatch: fraction of client's data to apply minibatch sgd,
-                None to use FedAvg
-        Return:
-            comp: number of FLOPs executed in training process
-            num_samples: number of samples used in training
-            update: set of weights
-            update_size: number of bytes in update
+    #     Args:
+    #         num_epochs: Number of epochs to train. Unsupported if minibatch is provided (minibatch has only 1 epoch)
+    #         batch_size: Size of training batches.
+    #         minibatch: fraction of client's data to apply minibatch sgd,
+    #             None to use FedAvg
+    #     Return:
+    #         comp: number of FLOPs executed in training process
+    #         num_samples: number of samples used in training
+    #         update: set of weights
+    #         update_size: number of bytes in update
+    #     """
+    #     if minibatch is None:
+    #         data = self.train_data
+    #         comp, update = self.model.train(data, num_epochs, batch_size)
+    #     else:
+    #         frac = min(1.0, minibatch)
+    #         num_data = max(1, int(frac*len(self.train_data["x"])))
+    #         xs, ys = zip(*random.sample(list(zip(self.train_data["x"], self.train_data["y"])), num_data))
+    #         data = {'x': xs, 'y': ys}
+
+    #         # Minibatch trains for only 1 epoch - multiple local epochs don't make sense!
+    #         num_epochs = 1
+
+    #         print("Client %s: training on %d out of %d samples" % (self.id, num_data, len(self.train_data["x"])))
+    #         comp, update = self.model.train(data, num_epochs, num_data)
+    #     num_train_samples = len(data['y'])
+    #     return comp, num_train_samples, update
+
+
+    def train(self, num_epochs=1, batch_size=10, minibatch=None):
         """
+        Treina no train_data.
+        - FedAvg: usa num_epochs e batch_size (full-batch se batch_size<=0 ou >=n).
+        - Minibatch: usa fração dos dados; se frac>=1.0, usa dataset completo sem amostrar e faz um único passo full-batch.
+        Retorna: comp, num_train_samples, update
+        """
+        x_all, y_all = self.train_data['x'], self.train_data['y']
+        n = len(y_all)
+
         if minibatch is None:
-            data = self.train_data
-            comp, update = self.model.train(data, num_epochs, batch_size)
+            # ----- FedAvg -----
+            B = batch_size
+            if B is None or B <= 0 or B >= n:
+                B = n  # full-batch para equivalência com Minibatch=100%
+            data = {'x': x_all, 'y': y_all}
+            E = num_epochs
+            comp, update = self.model.train(data, E, B)
+            num_train_samples = len(data['y'])
+            return comp, num_train_samples, update
+
         else:
-            frac = min(1.0, minibatch)
-            num_data = max(1, int(frac*len(self.train_data["x"])))
-            xs, ys = zip(*random.sample(list(zip(self.train_data["x"], self.train_data["y"])), num_data))
+            # ----- Minibatch SGD -----
+            frac = float(min(1.0, minibatch))
+            num_data = max(1, int(frac * n))
+
+            if num_data >= n:
+                # 100%: usa TODO o dataset, sem amostrar/embaralhar
+                xs, ys = x_all, y_all
+            else:
+                # fração < 100%: amostra sem reposição (pode usar numpy para seed por round)
+                idx = random.sample(range(n), num_data)
+                xs = [x_all[i] for i in idx]
+                ys = [y_all[i] for i in idx]
+
             data = {'x': xs, 'y': ys}
 
-            # Minibatch trains for only 1 epoch - multiple local epochs don't make sense!
-            num_epochs = 1
-            comp, update = self.model.train(data, num_epochs, num_data)
-        num_train_samples = len(data['y'])
-        return comp, num_train_samples, update
+            # Minibatch treina 1 época; para equivalência, um único passo full-batch
+            E = 1
+            B = len(xs)  # full-batch da fração selecionada
+            comp, update = self.model.train(data, E, B)
+            num_train_samples = len(data['y'])
+            return comp, num_train_samples, update
 
     def test(self, set_to_use='test'):
         """Tests self.model on self.test_data.

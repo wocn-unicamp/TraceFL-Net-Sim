@@ -76,10 +76,11 @@ def main():
         print('--- Round %d of %d: Training %d Clients ---' % (i + 1, num_rounds, clients_per_round))
 
         # Select clients to train this round
-        if i < 2:
+        if i < 1:
             server.select_clients(i, online(clients), num_clients=clients_per_round)
-        c_ids, c_groups, c_num_samples = server.get_clients_info(server.selected_clients)
 
+        c_ids, c_groups, c_num_samples = server.get_clients_info(server.selected_clients)
+        
         # Simulate server model training on selected clients' data
         sys_metrics = server.train_model(num_epochs=args.num_epochs, batch_size=args.batch_size, minibatch=args.minibatch)
         sys_writer_fn(i + 1, c_ids, sys_metrics, c_groups, c_num_samples)

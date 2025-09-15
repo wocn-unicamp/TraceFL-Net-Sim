@@ -14,7 +14,7 @@ file_base = "stat_metrics_" + alg + "_"
 file_bases = [
     "stat_metrics_minibatch_c_5_mb_1",
     "stat_metrics_minibatch_c_10_mb_1",
-    "stat_metrics_minibatch_c_30_mb_1",
+    "stat_metrics_minibatch_c_30_mb_1", 
     "stat_metrics_minibatch_c_50_mb_1"
 ]
 
@@ -78,6 +78,12 @@ axs[1, 0].set_xlabel("Rounds")
 axs[1, 1].set_xlabel("Rounds")
 axs[0, 0].set_ylabel("Accuracy")
 axs[1, 0].set_ylabel("Loss")
+
+# ylim and xlim for accuracy plots
+axs[0, 0].set_ylim(0, 0.8)
+axs[0, 1].set_ylim(0, 0.8)
+axs[0, 0].set_xlim(0, 500)
+axs[0, 1].set_xlim(0, 500)
 
 for ax in axs.ravel():
     ax.grid(True)

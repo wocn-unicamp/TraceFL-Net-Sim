@@ -9,20 +9,18 @@ results_dir="${2:-./results}"     # métricas (tendrá subcarpetas sys/ y stat/)
 
 split_seed="1549786796"
 sampling_seed="1549786595"
-num_rounds="500"
+num_rounds="20"
 eval_every="20"
 
-
-
+# Parámetros FedAvg
 fedavg_lr="0.004"
-declare -a fedavg_vals=( "5 1" "10 1" "30 1" "50 1" ) # (num_clients num_epochs)
-# declare -a fedavg_vals=( "50 1" ) # (num_clients num_epochs)
+# declare -a fedavg_vals=( "5 1" "10 1" "30 1" "50 1" ) # (num_clients num_epochs)
+declare -a fedavg_vals=( "5 1" ) # (num_clients num_epochs)
 
-
-# minibatch_lr="0.06"
-minibatch_lr="0.06"
-declare -a minibatch_vals=( "5 1" "10 1" "30 1" "50 1" ) # (num_clients minibatch_fraction)
-# declare -a minibatch_vals=("50 1") # (num_clients minibatch_fraction)
+# Parámetros Minibatch SGD
+minibatch_lr="0.004"
+# declare -a minibatch_vals=( "5 1" "10 1" "30 1" "50 1" ) # (num_clients minibatch_fraction)
+declare -a minibatch_vals=("5 1") # (num_clients minibatch_fraction)
 
 ###################### Functions ###################################
 
@@ -50,30 +48,25 @@ function move_data() {
   local metrics_path="$2"  # results
   local suffix="$3"
 
-  # Crear carpetas de salida
   mkdir -p "${meta_path}"
-  mkdir -p "${metrics_path}/sys"   # métricas del sistema
-  mkdir -p "${metrics_path}/stat"  # métricas estadísticas
+  mkdir -p "${metrics_path}/sys" "${metrics_path}/stat"
 
-  # Métricas -> results/sys/ y results/stat/
   pushd models/metrics >/dev/null
-    # En tu repo se llaman así:
-    #   metrics_sys.csv  -> sys_metrics_<sufijo>.csv  (va a results/sys/)
-    #   metrics_stat.csv -> stat_metrics_<sufijo>.csv (va a results/stat/)
     _move_one "metrics_sys.csv"  "${metrics_path}/sys"  "sys_metrics"  "${suffix}"
     _move_one "metrics_stat.csv" "${metrics_path}/stat" "stat_metrics" "${suffix}"
   popd >/dev/null
 
-  # Metadatos -> baseline/
   if [[ -d "data/femnist/meta" ]]; then
-    cp -r "data/femnist/meta" "${meta_path}" || true
-    if [[ -d "${meta_path}/meta" ]]; then
-      mv "${meta_path}/meta" "${meta_path}/meta_${suffix}"
-    fi
+    # copia CONTEÚDO de meta/ para baseline/meta_<sufixo>/
+    local target="${meta_path}/meta_${suffix}"
+    rm -rf "${target}"                     # limpa se existir
+    mkdir -p "${target}"
+    cp -a "data/femnist/meta/." "${target}/"
   else
     echo "WARN: no existe data/femnist/meta; se omite copia de meta."
   fi
 }
+
 
 function run_fedavg() {
   local clients_per_round="$1"
