@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 # Carregar o novo arquivo enviado (com sufixo x)
 folder_path = "../results/stat/"
-file_name = "stat_metrics_minibatch_c_5_mb_0.1.csv"
+file_name = "stat_metrics_minibatch_c_3_mb_0.1.csv"
 
 file_path = folder_path + file_name
 
