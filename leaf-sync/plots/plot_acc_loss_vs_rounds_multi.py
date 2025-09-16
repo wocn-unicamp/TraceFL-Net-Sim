@@ -14,8 +14,7 @@ file_base = "stat_metrics_" + alg + "_"
 file_bases = [
     "stat_metrics_minibatch_c_5_mb_1",
     "stat_metrics_minibatch_c_10_mb_1",
-    "stat_metrics_minibatch_c_30_mb_1", 
-    "stat_metrics_minibatch_c_50_mb_1"
+    "stat_metrics_minibatch_c_30_mb_1"
 ]
 
 # Linestyles diferentes para cada arquivo (cores ficam a cargo do matplotlib)

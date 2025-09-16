@@ -42,7 +42,11 @@ class Client:
     #     num_train_samples = len(data['y'])
     #     return comp, num_train_samples, update
 
-
+    # @Oscar code: new version of train() with FedAvg and Minibatch
+    # Minibatch now uses the SAME batch_size as FedAvg (default 10 if not specified)
+    # before, it was using full-batch always (batch_size = num_data)
+    # This makes the comparison fairer, as both use the same batch_size hyperparameter
+    # (and also the same learning rate, set in main.py)
     def train(self, num_epochs=1, batch_size=10, minibatch=None):
         """
         Treina no train_data.
@@ -63,26 +67,32 @@ class Client:
             comp, update = self.model.train(data, E, B)
             num_train_samples = len(data['y'])
             return comp, num_train_samples, update
-
         else:
             # ----- Minibatch SGD -----
             frac = float(min(1.0, minibatch))
-            num_data = max(1, int(frac * n))
+            n = len(y_all)
+            num_data = max(1, int(round(frac * n)))
 
+            # Amostra sem reposição quando frac < 1.0; para 100% usa todos
+            # (use NumPy para facilitar tornar determinístico se quiser)
+            import numpy as np
             if num_data >= n:
-                # 100%: usa TODO o dataset, sem amostrar/embaralhar
-                xs, ys = x_all, y_all
+                idx = np.arange(n)
             else:
-                # fração < 100%: amostra sem reposição (pode usar numpy para seed por round)
-                idx = random.sample(range(n), num_data)
-                xs = [x_all[i] for i in idx]
-                ys = [y_all[i] for i in idx]
+                idx = np.random.choice(n, size=num_data, replace=False)
 
+
+            xs = [x_all[i] for i in idx]
+            ys = [y_all[i] for i in idx]
             data = {'x': xs, 'y': ys}
 
-            # Minibatch treina 1 época; para equivalência, um único passo full-batch
-            E = 1
-            B = len(xs)  # full-batch da fração selecionada
+            # >>> AQUI ESTÁ A MUDANÇA-CHAVE: usar o MESMO batch_size do FedAvg <<<
+            # - Se batch_size não for passado (None ou <=0), caia para o padrão (ex.: 10)
+            B = batch_size if (batch_size is not None and batch_size > 0) else 10
+            # - Garanta que não ultrapasse o tamanho do subconjunto selecionado
+            B = min(B, len(xs))
+
+            E = 1  # uma época no modo minibatch
             comp, update = self.model.train(data, E, B)
             num_train_samples = len(data['y'])
             return comp, num_train_samples, update

@@ -9,18 +9,20 @@ results_dir="${2:-./results}"     # métricas (tendrá subcarpetas sys/ y stat/)
 
 split_seed="1549786796"
 sampling_seed="1549786595"
-num_rounds="20"
+num_rounds="500"
 eval_every="20"
 
 # Parámetros FedAvg
 fedavg_lr="0.004"
-# declare -a fedavg_vals=( "5 1" "10 1" "30 1" "50 1" ) # (num_clients num_epochs)
-declare -a fedavg_vals=( "5 1" ) # (num_clients num_epochs)
+declare -a fedavg_vals=( "5 1" "10 1" "30 1" "50 1" ) # (num_clients num_epochs)
+# declare -a fedavg_vals=( "10 1" ) # (num_clients num_epochs)
 
 # Parámetros Minibatch SGD
 minibatch_lr="0.004"
-# declare -a minibatch_vals=( "5 1" "10 1" "30 1" "50 1" ) # (num_clients minibatch_fraction)
-declare -a minibatch_vals=("5 1") # (num_clients minibatch_fraction)
+declare -a minibatch_vals=( "5 1" "10 1" "30 1" "50 1" "30 0.8" "30 0.5" "30 0.2" "30 0.1") # (num_clients minibatch_fraction)
+# declare -a minibatch_vals=( "10 0.8" "10 0.3" "10 0.1" ) # (num_clients minibatch_fraction)
+
+# declare -a minibatch_vals=("10 1") # (num_clients minibatch_fraction)
 
 ###################### Functions ###################################
 
@@ -130,7 +132,7 @@ echo "Métricas SYS en:  ${results_dir}/sys"
 echo "Métricas STAT en: ${results_dir}/stat"
 echo "Invoca: ${0} <dir_metadatos> <dir_metricas>  para cambiar rutas"
 
-# Run minibatch SGD experiments
+# # Run minibatch SGD experiments
 for val_pair in "${minibatch_vals[@]}"; do
   clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
   minibatch_percentage="$(echo ${val_pair} | cut -d' ' -f2)"
@@ -138,7 +140,7 @@ for val_pair in "${minibatch_vals[@]}"; do
   run_minibatch "${clients_per_round}" "${minibatch_percentage}"
 done
 
-# Run FedAvg experiments
+# # Run FedAvg experiments
 for val_pair in "${fedavg_vals[@]}"; do
   clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
   num_epochs="$(echo ${val_pair} | cut -d' ' -f2)"
