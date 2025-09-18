@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 
 # Carregar o novo arquivo enviado (com sufixo x)
 folder_path = "../results/stat/"
-file_name = "stat_metrics_shakespeare_fedavg_c_8_e_1x"
+file_name = "stat_metrics_shakespeare_fedavg_c_8_e_1.csv"
 
-file_path = folder_path + file_name + ".csv"
+file_path = folder_path + file_name
 
 df = pd.read_csv(file_path)
 
@@ -42,6 +42,6 @@ axs[1].grid(True)
 plt.tight_layout()
 
 # save the figure in the folder figures/
-plt.savefig("figures/"+ file_name +".png")
+plt.savefig("figures/plot_acc_loss_vs_rounds_shakespeare_fedavg_c_8_e_1.png")
 
 plt.show()

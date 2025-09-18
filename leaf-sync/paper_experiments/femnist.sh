@@ -9,20 +9,14 @@ results_dir="${2:-./results}"     # métricas (tendrá subcarpetas sys/ y stat/)
 
 split_seed="1549786796"
 sampling_seed="1549786595"
-num_rounds="500"
-eval_every="20"
+num_rounds="100"
 
-# Parámetros FedAvg
 fedavg_lr="0.004"
-declare -a fedavg_vals=( "5 1" "10 1" "30 1" "50 1" ) # (num_clients num_epochs)
-# declare -a fedavg_vals=( "10 1" ) # (num_clients num_epochs)
+declare -a fedavg_vals=("3 1" "5 1" "7 1")
 
-# Parámetros Minibatch SGD
-minibatch_lr="0.004"
-declare -a minibatch_vals=( "5 1" "10 1" "30 1" "50 1" "30 0.8" "30 0.5" "30 0.2" "30 0.1") # (num_clients minibatch_fraction)
-# declare -a minibatch_vals=( "10 0.8" "10 0.3" "10 0.1" ) # (num_clients minibatch_fraction)
 
-# declare -a minibatch_vals=("10 1") # (num_clients minibatch_fraction)
+minibatch_lr="0.06"
+declare -a minibatch_vals=( "3 1" "3 0.1" "5 1" )
 
 ###################### Functions ###################################
 
@@ -50,25 +44,30 @@ function move_data() {
   local metrics_path="$2"  # results
   local suffix="$3"
 
+  # Crear carpetas de salida
   mkdir -p "${meta_path}"
-  mkdir -p "${metrics_path}/sys" "${metrics_path}/stat"
+  mkdir -p "${metrics_path}/sys"   # métricas del sistema
+  mkdir -p "${metrics_path}/stat"  # métricas estadísticas
 
+  # Métricas -> results/sys/ y results/stat/
   pushd models/metrics >/dev/null
+    # En tu repo se llaman así:
+    #   metrics_sys.csv  -> sys_metrics_<sufijo>.csv  (va a results/sys/)
+    #   metrics_stat.csv -> stat_metrics_<sufijo>.csv (va a results/stat/)
     _move_one "metrics_sys.csv"  "${metrics_path}/sys"  "sys_metrics"  "${suffix}"
     _move_one "metrics_stat.csv" "${metrics_path}/stat" "stat_metrics" "${suffix}"
   popd >/dev/null
 
+  # Metadatos -> baseline/
   if [[ -d "data/femnist/meta" ]]; then
-    # copia CONTEÚDO de meta/ para baseline/meta_<sufixo>/
-    local target="${meta_path}/meta_${suffix}"
-    rm -rf "${target}"                     # limpa se existir
-    mkdir -p "${target}"
-    cp -a "data/femnist/meta/." "${target}/"
+    cp -r "data/femnist/meta" "${meta_path}" || true
+    if [[ -d "${meta_path}/meta" ]]; then
+      mv "${meta_path}/meta" "${meta_path}/meta_${suffix}"
+    fi
   else
     echo "WARN: no existe data/femnist/meta; se omite copia de meta."
   fi
 }
-
 
 function run_fedavg() {
   local clients_per_round="$1"
@@ -79,7 +78,6 @@ function run_fedavg() {
       --num-rounds "${num_rounds}" \
       --clients-per-round "${clients_per_round}" \
       --num-epochs "${num_epochs}" \
-      --eval-every "${eval_every}" \
       -lr "${fedavg_lr}"
   popd >/dev/null
 
@@ -95,7 +93,6 @@ function run_minibatch() {
       --minibatch "${minibatch_percentage}" \
       --num-rounds "${num_rounds}" \
       --clients-per-round "${clients_per_round}" \
-      --eval-every "${eval_every}" \
       -lr "${minibatch_lr}"
   popd >/dev/null
 
@@ -133,14 +130,14 @@ echo "Métricas STAT en: ${results_dir}/stat"
 echo "Invoca: ${0} <dir_metadatos> <dir_metricas>  para cambiar rutas"
 
 # # Run minibatch SGD experiments
-for val_pair in "${minibatch_vals[@]}"; do
-  clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
-  minibatch_percentage="$(echo ${val_pair} | cut -d' ' -f2)"
-  echo "Running Minibatch experiment with fraction ${minibatch_percentage} and ${clients_per_round} clients"
-  run_minibatch "${clients_per_round}" "${minibatch_percentage}"
-done
+# for val_pair in "${minibatch_vals[@]}"; do
+#   clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
+#   minibatch_percentage="$(echo ${val_pair} | cut -d' ' -f2)"
+#   echo "Running Minibatch experiment with fraction ${minibatch_percentage} and ${clients_per_round} clients"
+#   run_minibatch "${clients_per_round}" "${minibatch_percentage}"
+# done
 
-# # Run FedAvg experiments
+# Run FedAvg experiments
 for val_pair in "${fedavg_vals[@]}"; do
   clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
   num_epochs="$(echo ${val_pair} | cut -d' ' -f2)"
