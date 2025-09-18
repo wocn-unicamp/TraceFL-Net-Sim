@@ -22,7 +22,7 @@ Project to Evaluate the Impact of Federated Learning Applications on the Network
 
     $ pip install -r requirements
 
-### -- Desactivate Virtual Environment --
+### -- Desactivate Virtual Environment -- ###
 
     $ deactivate -->
 
