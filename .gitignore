@@ -28,3 +28,7 @@ leaf-sync/autodoc/
 # Permitir CSVs dentro de results/
 # Mas permite CSV dentro de leaf-sync/results/
 !leaf-sync/results/**/*.csv
+
+
+# Permitir un archivo .zip dentro de leaf-sync/datasets/
+!leaf-sync/datasets/*.zip
