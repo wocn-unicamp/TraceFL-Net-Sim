@@ -29,7 +29,7 @@ sampling_seed="1549786595"
 num_rounds="50"
 fedavg_lr="0.8"
 
-declare -a fedavg_vals=("8 1") # (num_clients num_epochs)
+declare -a fedavg_vals=("5 1" "3 1") # (num_clients num_epochs)
 
 echo "[Paths]"
 echo "  ROOT_DIR:      ${ROOT_DIR}"
@@ -92,7 +92,7 @@ prep_shakespeare_preprocess() {
       mkdir -p preprocess_tmp
       pushd preprocess_tmp >/dev/null
         ZIP_URLS=(
-          "https://mirror.ossplanet.net/mirror/gutenberg/1/0/100/old/1994-01-100.zip"
+          "https://github.com/wocn-unicamp/TraceFL-Net-Sim/raw/refs/heads/main/leaf-sync/datasets/1994-01-100.zip"
           "https://readingroo.ms/1/0/100/old/old/1994-01-100.zip"
         )
         ok=false

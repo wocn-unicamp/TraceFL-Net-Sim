@@ -14,7 +14,7 @@ if [[ -s "${TARGET}" ]]; then
 fi
 
 # Preferir o ZIP antigo; fallback para TXT modernos
-ZIP_URL="https://mirror.ossplanet.net/mirror/gutenberg/1/0/100/old/1994-01-100.zip"
+ZIP_URL="https://github.com/wocn-unicamp/TraceFL-Net-Sim/raw/refs/heads/main/leaf-sync/datasets/1994-01-100.zip"
 FALLBACK_TXT_URLS=(
   "https://www.gutenberg.org/cache/epub/100/pg100.txt"
   "https://www.gutenberg.org/files/100/100-0.txt"
