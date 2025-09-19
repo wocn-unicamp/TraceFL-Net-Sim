@@ -29,7 +29,7 @@ sampling_seed="1549786595"
 num_rounds="50"
 fedavg_lr="0.8"
 
-declare -a fedavg_vals=("5 1" "3 1") # (num_clients num_epochs)
+declare -a fedavg_vals=("9 1") # (num_clients num_epochs)
 
 echo "[Paths]"
 echo "  ROOT_DIR:      ${ROOT_DIR}"
