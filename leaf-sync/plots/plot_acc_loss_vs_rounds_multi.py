@@ -30,6 +30,7 @@ file_bases = [
     "stat_metrics_shakespeare_fedavg_c_8_e_1",
     "stat_metrics_shakespeare_fedavg_c_5_e_1",
     "stat_metrics_shakespeare_fedavg_c_4_e_1",
+    "stat_metrics_shakespeare_fedavg_c_9_e_1",
     "stat_metrics_shakespeare_fedavg_c_3_e_1"
 ]
 
