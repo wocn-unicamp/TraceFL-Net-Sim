@@ -29,7 +29,7 @@ sampling_seed="1549786595"
 num_rounds="50"
 fedavg_lr="0.8"
 
-declare -a fedavg_vals=("9 1") # (num_clients num_epochs)
+declare -a fedavg_vals=("8 1" "5 1" "4 1" "3 1" "2 1") # (num_clients num_epochs)
 
 echo "[Paths]"
 echo "  ROOT_DIR:      ${ROOT_DIR}"
@@ -212,26 +212,53 @@ function _move_one() {
 }
 
 # Guarda métricas em results_dir e meta em output_dir
+# function move_data() {
+#   local meta_path="$1"     # baseline
+#   local metrics_path="$2"  # results
+#   local suffix="$3"
+
+#   mkdir -p "${meta_path}"
+#   mkdir -p "${metrics_path}/sys" "${metrics_path}/stat"
+
+#   pushd "${METRICS_DIR}" >/dev/null
+#     _move_one "metrics_sys.csv"  "${metrics_path}/sys"  "sys_metrics"  "${suffix}"
+#     _move_one "metrics_stat.csv" "${metrics_path}/stat" "stat_metrics" "${suffix}"
+#   popd >/dev/null
+
+#   if [[ -d "${DATASET_DIR}/meta" ]]; then
+#     cp -r "${DATASET_DIR}/meta" "${meta_path}" || true
+#     if [[ -d "${meta_path}/meta" ]]; then
+#       mv "${meta_path}/meta" "${meta_path}/meta_${suffix}"
+#     fi
+#   else
+#     echo "WARN: no existe ${DATASET_DIR}/meta; se omite copia de meta."
+#   fi
+# }
+
 function move_data() {
   local meta_path="$1"     # baseline
   local metrics_path="$2"  # results
   local suffix="$3"
 
-  mkdir -p "${meta_path}"
   mkdir -p "${metrics_path}/sys" "${metrics_path}/stat"
 
+  # ---- métricas (move com nomes únicos) ----
   pushd "${METRICS_DIR}" >/dev/null
     _move_one "metrics_sys.csv"  "${metrics_path}/sys"  "sys_metrics"  "${suffix}"
     _move_one "metrics_stat.csv" "${metrics_path}/stat" "stat_metrics" "${suffix}"
   popd >/dev/null
 
+  # ---- meta (copia direto para o destino do sufixo) ----
   if [[ -d "${DATASET_DIR}/meta" ]]; then
-    cp -r "${DATASET_DIR}/meta" "${meta_path}" || true
-    if [[ -d "${meta_path}/meta" ]]; then
-      mv "${meta_path}/meta" "${meta_path}/meta_${suffix}"
-    fi
+    local target="${meta_path}/meta_${suffix}"
+    # Remova o diretório de destino se já existir para evitar falha do mv/cp
+    rm -rf "${target}" || true
+    mkdir -p "${target}"
+    # copia os conteúdos preservando atributos
+    cp -a "${DATASET_DIR}/meta/." "${target}/"
+    echo "Meta copiada para: ${target}"
   else
-    echo "WARN: no existe ${DATASET_DIR}/meta; se omite copia de meta."
+    echo "WARN: não existe ${DATASET_DIR}/meta; omitida a cópia de meta."
   fi
 }
 

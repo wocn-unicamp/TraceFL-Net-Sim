@@ -12,7 +12,7 @@ sampling_seed="1549786595"
 num_rounds="1000"
 
 fedavg_lr="0.004"
-declare -a fedavg_vals=("50 1" "30 1" "20 1" "10 1" "5 1" "3 1") # (num_clients num_epochs)
+declare -a fedavg_vals=( "30 1" "20 1" "10 1" "5 1" "3 1") # (num_clients num_epochs)
 
 
 minibatch_lr="0.06"
@@ -25,6 +25,7 @@ declare -a minibatch_vals=( "3 1" "3 0.1" "5 1" )
 # $2 = destino (results_dir/<sys|stat>)
 # $3 = prefijo de salida (sys_metrics | stat_metrics)
 # $4 = sufijo (ej.: fedavg_c_3_e_1)
+# Move um arquivo de métricas (se existir) para results/<sys|stat>/ com sobrescrita
 function _move_one() {
   local src="$1"
   local dst_dir="$2"
@@ -32,40 +33,37 @@ function _move_one() {
   local suffix="$4"
 
   if [[ -f "$src" ]]; then
-    mv "$src" "${dst_dir}/${out_prefix}_${suffix}.csv"
+    mkdir -p "${dst_dir}"
+    mv -f "$src" "${dst_dir}/${out_prefix}_${suffix}.csv"
   else
-    echo "WARN: no se encontró '$src' (se omite)."
+    echo "WARN: não encontrado: '$src' (omitindo)."
   fi
 }
 
-# Guarda métricas en results_dir (separadas en sys/ y stat/) y meta en output_dir
+# Copia métricas e metadados; cria meta_<sufixo> do zero e apaga se já existir
 function move_data() {
-  local meta_path="$1"     # baseline
-  local metrics_path="$2"  # results
-  local suffix="$3"
+  local meta_root="$1"     # ex.: ./baseline (absoluto depois do realpath)
+  local metrics_root="$2"  # ex.: ./results  (absoluto)
+  local suffix="$3"        # ex.: fedavg_c_50_e_1
 
-  # Crear carpetas de salida
-  mkdir -p "${meta_path}"
-  mkdir -p "${metrics_path}/sys"   # métricas del sistema
-  mkdir -p "${metrics_path}/stat"  # métricas estadísticas
+  # Pastas de saída
+  mkdir -p "${metrics_root}/sys" "${metrics_root}/stat" "${meta_root}"
 
-  # Métricas -> results/sys/ y results/stat/
+  # Métricas -> results/sys e results/stat
   pushd models/metrics >/dev/null
-    # En tu repo se llaman así:
-    #   metrics_sys.csv  -> sys_metrics_<sufijo>.csv  (va a results/sys/)
-    #   metrics_stat.csv -> stat_metrics_<sufijo>.csv (va a results/stat/)
-    _move_one "metrics_sys.csv"  "${metrics_path}/sys"  "sys_metrics"  "${suffix}"
-    _move_one "metrics_stat.csv" "${metrics_path}/stat" "stat_metrics" "${suffix}"
+    _move_one "metrics_sys.csv"  "${metrics_root}/sys"  "sys_metrics"  "${suffix}"
+    _move_one "metrics_stat.csv" "${metrics_root}/stat" "stat_metrics" "${suffix}"
   popd >/dev/null
 
-  # Metadatos -> baseline/
+  # Metadados -> baseline/meta_<sufixo>
   if [[ -d "data/femnist/meta" ]]; then
-    cp -r "data/femnist/meta" "${meta_path}" || true
-    if [[ -d "${meta_path}/meta" ]]; then
-      mv "${meta_path}/meta" "${meta_path}/meta_${suffix}"
-    fi
+    local target="${meta_root}/meta_${suffix}"
+    rm -rf "${target}"                 # evita "Directory not empty"
+    mkdir -p "${target}"
+    # copia o conteúdo de meta/ para o destino (sem criar diretório meta/ dentro)
+    cp -a "data/femnist/meta/." "${target}/"
   else
-    echo "WARN: no existe data/femnist/meta; se omite copia de meta."
+    echo "WARN: não existe data/femnist/meta; metadados não copiados."
   fi
 }
 
