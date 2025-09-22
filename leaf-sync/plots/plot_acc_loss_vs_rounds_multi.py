@@ -6,13 +6,15 @@ import matplotlib.pyplot as plt
 # Pasta e lista de arquivos-base (com ou sem .csv)
 folder_path = "../results/stat/"
 
-# file_bases = [
-#     "stat_metrics_shakespeare_fedavg_c_2_e_1",
-#     "stat_metrics_shakespeare_fedavg_c_3_e_1",
-#     "stat_metrics_shakespeare_fedavg_c_4_e_1",
-#     "stat_metrics_shakespeare_fedavg_c_5_e_1",
-#     "stat_metrics_shakespeare_fedavg_c_8_e_1",
-# ]
+file_bases = [
+    "stat_metrics_shakespeare_fedavg_c_2_e_1",
+    "stat_metrics_shakespeare_fedavg_c_3_e_1",
+    "stat_metrics_shakespeare_fedavg_c_4_e_1",
+    "stat_metrics_shakespeare_fedavg_c_5_e_1",
+    "stat_metrics_shakespeare_fedavg_c_8_e_1",
+    "stat_metrics_shakespeare_fedavg_c_10_e_1",
+    "stat_metrics_shakespeare_fedavg_c_20_e_1"
+]
 
 
 # file_bases = [
@@ -25,15 +27,15 @@ folder_path = "../results/stat/"
 # ]
 
 
-file_bases = [
-    "stat_metrics_minibatch_c_20_mb_1",
-    "stat_metrics_minibatch_c_20_mb_0.9",
-    "stat_metrics_minibatch_c_20_mb_0.8",
-    "stat_metrics_minibatch_c_20_mb_0.6",
-    "stat_metrics_minibatch_c_20_mb_0.5",
-    "stat_metrics_minibatch_c_20_mb_0.4",
-    "stat_metrics_minibatch_c_20_mb_0.2",
-]
+# file_bases = [
+#     "stat_metrics_minibatch_c_20_mb_1",
+#     "stat_metrics_minibatch_c_20_mb_0.9",
+#     "stat_metrics_minibatch_c_20_mb_0.8",
+#     "stat_metrics_minibatch_c_20_mb_0.6",
+#     "stat_metrics_minibatch_c_20_mb_0.5",
+#     "stat_metrics_minibatch_c_20_mb_0.4",
+#     "stat_metrics_minibatch_c_20_mb_0.2",
+# ]
 
 name_figure = file_bases[0].split("_")[2]  # ex.: "c_5_e_1"
 
