@@ -15,13 +15,24 @@ folder_path = "../results/stat/"
 # ]
 
 
+# file_bases = [
+#     "stat_metrics_fedavg_c_50_e_1",
+#     "stat_metrics_fedavg_c_30_e_1",
+#     "stat_metrics_fedavg_c_20_e_1",
+#     "stat_metrics_fedavg_c_10_e_1",
+#     "stat_metrics_fedavg_c_5_e_1",
+#     "stat_metrics_fedavg_c_3_e_1"
+# ]
+
+
 file_bases = [
-    "stat_metrics_fedavg_c_50_e_1",
-    "stat_metrics_fedavg_c_30_e_1",
-    "stat_metrics_fedavg_c_20_e_1",
-    "stat_metrics_fedavg_c_10_e_1",
-    "stat_metrics_fedavg_c_5_e_1",
-    "stat_metrics_fedavg_c_3_e_1"
+    "stat_metrics_minibatch_c_20_mb_1",
+    "stat_metrics_minibatch_c_20_mb_0.9",
+    "stat_metrics_minibatch_c_20_mb_0.8",
+    "stat_metrics_minibatch_c_20_mb_0.6",
+    "stat_metrics_minibatch_c_20_mb_0.5",
+    "stat_metrics_minibatch_c_20_mb_0.4",
+    "stat_metrics_minibatch_c_20_mb_0.2",
 ]
 
 name_figure = file_bases[0].split("_")[2]  # ex.: "c_5_e_1"
@@ -83,24 +94,24 @@ for i, base in enumerate(file_bases):
     # ----- Accuracy -----
     if not acc_train.empty:
         axs[0, 0].plot(acc_train.index, acc_train.values,
-                       linestyle=ls, marker='s', label=f"{label_tag} — Train")
+                       linestyle=ls, marker='None', label=f"{label_tag} — Train")
     else:
         print(f"[aviso] sem dados de train/accuracy em {file_path}.")
     if not acc_test.empty:
         axs[0, 1].plot(acc_test.index, acc_test.values,
-                       linestyle=ls, marker='o', label=f"{label_tag} — Test")
+                       linestyle=ls, marker='None', label=f"{label_tag} — Test")
     else:
         print(f"[aviso] sem dados de test/accuracy em {file_path}.")
 
     # ----- Loss -----
     if not loss_train.empty:
         axs[1, 0].plot(loss_train.index, loss_train.values,
-                       linestyle=ls, marker='s', label=f"{label_tag} — Train")
+                       linestyle=ls, marker='None', label=f"{label_tag} — Train")
     else:
         print(f"[aviso] sem dados de train/loss em {file_path}.")
     if not loss_test.empty:
         axs[1, 1].plot(loss_test.index, loss_test.values,
-                       linestyle=ls, marker='o', label=f"{label_tag} — Test")
+                       linestyle=ls, marker='None', label=f"{label_tag} — Test")
     else:
         print(f"[aviso] sem dados de test/loss em {file_path}.")
 

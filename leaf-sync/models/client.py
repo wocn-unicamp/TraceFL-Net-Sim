@@ -28,15 +28,47 @@ class Client:
         if minibatch is None:
             data = self.train_data
             comp, update = self.model.train(data, num_epochs, batch_size)
+        # else:
+        #     frac = min(1.0, minibatch)
+        #     num_data = max(1, int(frac*len(self.train_data["x"])))
+        #     xs, ys = zip(*random.sample(list(zip(self.train_data["x"], self.train_data["y"])), num_data))
+        #     data = {'x': xs, 'y': ys}
+
+        #     # Minibatch trains for only 1 epoch - multiple local epochs don't make sense!
+        #     num_epochs = 1
+        #     comp, update = self.model.train(data, num_epochs, num_data)
+
         else:
-            frac = min(1.0, minibatch)
-            num_data = max(1, int(frac*len(self.train_data["x"])))
-            xs, ys = zip(*random.sample(list(zip(self.train_data["x"], self.train_data["y"])), num_data))
+            # ----- Minibatch SGD -----
+            x_all, y_all = self.train_data['x'], self.train_data['y']
+            n = len(y_all)
+            frac = float(min(1.0, minibatch))
+            n = len(y_all)
+            num_data = max(1, int(round(frac * n)))
+
+            # Amostra sem reposição quando frac < 1.0; para 100% usa todos
+            # (use NumPy para facilitar tornar determinístico se quiser)
+            import numpy as np
+            if num_data >= n:
+                idx = np.arange(n)
+            else:
+                idx = np.random.choice(n, size=num_data, replace=False)
+
+
+            xs = [x_all[i] for i in idx]
+            ys = [y_all[i] for i in idx]
             data = {'x': xs, 'y': ys}
 
-            # Minibatch trains for only 1 epoch - multiple local epochs don't make sense!
-            num_epochs = 1
-            comp, update = self.model.train(data, num_epochs, num_data)
+            # >>> AQUI ESTÁ A MUDANÇA-CHAVE: usar o MESMO batch_size do FedAvg <<<
+            # - Se batch_size não for passado (None ou <=0), caia para o padrão (ex.: 10)
+            B = batch_size if (batch_size is not None and batch_size > 0) else 10
+            # - Garanta que não ultrapasse o tamanho do subconjunto selecionado
+            B = min(B, len(xs))
+
+            E = 1  # uma época no modo minibatch
+            comp, update = self.model.train(data, E, B)
+
+
         num_train_samples = len(data['y'])
         return comp, num_train_samples, update
 
