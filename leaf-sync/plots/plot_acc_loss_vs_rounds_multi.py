@@ -6,25 +6,25 @@ import matplotlib.pyplot as plt
 # Pasta e lista de arquivos-base (com ou sem .csv)
 folder_path = "../results/stat/"
 
-file_bases = [
-    "stat_metrics_shakespeare_fedavg_c_2_e_1",
-    "stat_metrics_shakespeare_fedavg_c_3_e_1",
-    "stat_metrics_shakespeare_fedavg_c_4_e_1",
-    "stat_metrics_shakespeare_fedavg_c_5_e_1",
-    "stat_metrics_shakespeare_fedavg_c_8_e_1",
-    "stat_metrics_shakespeare_fedavg_c_10_e_1",
-    "stat_metrics_shakespeare_fedavg_c_20_e_1"
-]
-
-
 # file_bases = [
-#     "stat_metrics_fedavg_c_50_e_1",
-#     "stat_metrics_fedavg_c_30_e_1",
-#     "stat_metrics_fedavg_c_20_e_1",
-#     "stat_metrics_fedavg_c_10_e_1",
-#     "stat_metrics_fedavg_c_5_e_1",
-#     "stat_metrics_fedavg_c_3_e_1"
+#     "stat_metrics_shakespeare_fedavg_c_2_e_1",
+#     "stat_metrics_shakespeare_fedavg_c_3_e_1",
+#     "stat_metrics_shakespeare_fedavg_c_4_e_1",
+#     "stat_metrics_shakespeare_fedavg_c_5_e_1",
+#     "stat_metrics_shakespeare_fedavg_c_8_e_1",
+#     "stat_metrics_shakespeare_fedavg_c_10_e_1",
+#     "stat_metrics_shakespeare_fedavg_c_20_e_1"
 # ]
+
+
+file_bases = [
+    "stat_metrics_fedavg_c_50_e_1",
+    "stat_metrics_fedavg_c_30_e_1",
+    "stat_metrics_fedavg_c_20_e_1",
+    "stat_metrics_fedavg_c_10_e_1",
+    "stat_metrics_fedavg_c_5_e_1",
+    "stat_metrics_fedavg_c_3_e_1"
+]
 
 
 # file_bases = [

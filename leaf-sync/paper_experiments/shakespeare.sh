@@ -26,10 +26,14 @@ split_seed="1549786796"
 sampling_seed="1549786595"
 
 
-num_rounds="50"
+num_rounds="10"
 fedavg_lr="0.8"
 
 declare -a fedavg_vals=("8 1" "5 1" "4 1" "3 1" "2 1") # (num_clients num_epochs)
+
+declare -a minibatch_vals=("10 1" "10 0.9" "10 0.8" "10 0.6" "10 0.5" "10 0.4" "10 0.3" "10 0.2") # (num_clients minibatch_fraction)
+minibatch_lr="0.8"
+
 
 echo "[Paths]"
 echo "  ROOT_DIR:      ${ROOT_DIR}"
@@ -191,6 +195,7 @@ function run_minibatch() {
       --minibatch "${minibatch_percentage}" \
       --num-rounds "${num_rounds}" \
       --clients-per-round "${clients_per_round}" \
+       --eval-every 2 \
       -lr "${minibatch_lr}"
   popd >/dev/null
 
@@ -282,18 +287,18 @@ echo
 # === Pré-processamento Shakespeare (LEAF oficial + cópia para leaf-sync) ===
 prep_shakespeare_preprocess
 
-# # Run minibatch SGD experiments (opcional)
-# for val_pair in "${minibatch_vals[@]}"; do
-#   clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
-#   minibatch_percentage="$(echo ${val_pair} | cut -d' ' -f2)"
-#   echo "Running Minibatch experiment with fraction ${minibatch_percentage} and ${clients_per_round}"
-#   run_minibatch "${clients_per_round}" "${minibatch_percentage}"
-# done
-
-# Run FedAvg experiments
-for val_pair in "${fedavg_vals[@]}"; do
+# Run minibatch SGD experiments (opcional)
+for val_pair in "${minibatch_vals[@]}"; do
   clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
-  num_epochs="$(echo ${val_pair} | cut -d' ' -f2)"
-  echo "Running FedAvg: epochs=${num_epochs}, clients=${clients_per_round}"
-  run_fedavg "${clients_per_round}" "${num_epochs}"
+  minibatch_percentage="$(echo ${val_pair} | cut -d' ' -f2)"
+  echo "Running Minibatch experiment with fraction ${minibatch_percentage} and ${clients_per_round}"
+  run_minibatch "${clients_per_round}" "${minibatch_percentage}"
 done
+
+# # Run FedAvg experiments
+# for val_pair in "${fedavg_vals[@]}"; do
+#   clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
+#   num_epochs="$(echo ${val_pair} | cut -d' ' -f2)"
+#   echo "Running FedAvg: epochs=${num_epochs}, clients=${clients_per_round}"
+#   run_fedavg "${clients_per_round}" "${num_epochs}"
+# done
