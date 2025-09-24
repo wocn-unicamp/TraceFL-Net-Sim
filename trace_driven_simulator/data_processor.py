@@ -3,10 +3,10 @@ import re
 import pandas as pd
 import argparse
 
-def find_leaf_stats_files(directory:str, pattern:str) -> list[str]:
+def find_leaf_stats_files(directory, pattern):
     regex = re.compile(pattern)
 
-    stats_files:set[str] = set()
+    stats_files = set()
 
     for filename in listdir(directory):
         if filename.endswith('.csv') and regex.match(filename):
@@ -56,8 +56,6 @@ def main():
         df['client_id'] = df.groupby(['round_number'])['client_id'].transform(
             lambda x: pd.factorize(x)[0] + 1
         )
-
-        splits = sys_stats.split("_")
 
         # response time in miliseconds
         df['time'] = (df['local_computations'] / args.clients_flops)
