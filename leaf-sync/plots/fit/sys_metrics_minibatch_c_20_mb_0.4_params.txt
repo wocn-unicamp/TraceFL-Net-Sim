@@ -1,0 +1,6 @@
+Best: mixlognorm(k=3)  loc=95061708.0
+ upper_trunc=1848422100.000000  Fu=0.963213  tail_mass_cut=0.036787
+ comp1: w=0.151235, mu_log=19.949179, sigma=0.305004, scale=exp(mu)=461124563.145941  <-- below W_MIN
+ comp2: w=0.449777, mu_log=20.362467, sigma=0.001000, scale=exp(mu)=697119192.000115
+ comp3: w=0.398988, mu_log=21.089226, sigma=0.147344, scale=exp(mu)=1441897893.531291
+SSE_ECDF=175.008542, MSE_ECDF=0.008751, RMSE_ECDF=0.093546, KS=0.226661, SCORE(=MSE+pen)=0.013627, MSE_no_pen=0.008751, PEN_w=0.004876, BIC=-74002.95
