@@ -1,0 +1,6 @@
+Template (normalized) — mode=minmax_robust
+ k=3, loc_norm=-0.8846153846153846
+ comp1: w=0.302047, mu_log_norm=0.567992, sigma=0.048993, exp(mu_norm)=1.76472
+ comp2: w=0.578880, mu_log_norm=0.121673, sigma=0.049312, exp(mu_norm)=1.12938
+ comp3: w=0.119074, mu_log_norm=0.395110, sigma=0.058243, exp(mu_norm)=1.48455
+SSE=103.397801, KS=0.103814, BIC=-184165.18

@@ -1,0 +1,130 @@
+=== Combined shifted-lognormal mixture parameters ===
+Normalization mode used per dataset is recorded below (type + metadata).
+Files included: 7
+
+--- sys_metrics_minibatch_c_20_mb_1 ---
+Normalization:
+ type=affine  desc=min–max robust (p1–p99)
+ a=1188271350.0
+ b=3432783900.0
+
+[Normalized space]
+ k=3, loc_norm=-1.3400202675152375
+ comp1: w=0.441245, mu_log_norm=0.462411, sigma=0.012071, exp(mu_norm)=1.5879
+ comp2: w=0.400067, mu_log_norm=0.761618, sigma=0.074983, exp(mu_norm)=2.14174
+ comp3: w=0.158687, mu_log_norm=0.362014, sigma=0.050716, exp(mu_norm)=1.43622
+
+[Original units (FLOPs)]
+ loc=-3411728650.0
+ comp1: w=0.441245, mu_log=22.419048, sigma=0.012071, exp(mu)=5.45091e+09 FLOPs
+ comp2: w=0.400067, mu_log=22.718255, sigma=0.074983, exp(mu)=7.35212e+09 FLOPs
+ comp3: w=0.158687, mu_log=22.318652, sigma=0.050716, exp(mu)=4.93023e+09 FLOPs
+
+--- sys_metrics_minibatch_c_20_mb_0.9 ---
+Normalization:
+ type=affine  desc=min–max robust (p1–p99)
+ a=1056241200.0
+ b=3168723600.0
+
+[Normalized space]
+ k=3, loc_norm=-1.4516886231415074
+ comp1: w=0.132735, mu_log_norm=0.434468, sigma=0.051621, exp(mu_norm)=1.54414
+ comp2: w=0.400156, mu_log_norm=0.805437, sigma=0.070665, exp(mu_norm)=2.23767
+ comp3: w=0.467109, mu_log_norm=0.523305, sigma=0.018662, exp(mu_norm)=1.6876
+
+[Original units (FLOPs)]
+ loc=-3543758800.000001
+ comp1: w=0.132735, mu_log=22.311062, sigma=0.051621, exp(mu)=4.89295e+09 FLOPs
+ comp2: w=0.400156, mu_log=22.682032, sigma=0.070665, exp(mu)=7.09057e+09 FLOPs
+ comp3: w=0.467109, mu_log=22.399900, sigma=0.018662, exp(mu)=5.34753e+09 FLOPs
+
+--- sys_metrics_minibatch_c_20_mb_0.8 ---
+Normalization:
+ type=affine  desc=min–max robust (p1–p99)
+ a=924211050.0
+ b=2772633150.0
+
+[Normalized space]
+ k=3, loc_norm=-1.6590727121617226
+ comp1: w=0.437465, mu_log_norm=0.645801, sigma=0.010308, exp(mu_norm)=1.90752
+ comp2: w=0.400085, mu_log_norm=0.904092, sigma=0.062611, exp(mu_norm)=2.46969
+ comp3: w=0.162450, mu_log_norm=0.567985, sigma=0.044115, exp(mu_norm)=1.76471
+
+[Original units (FLOPs)]
+ loc=-3675788950.0
+ comp1: w=0.437465, mu_log=22.388865, sigma=0.010308, exp(mu)=5.28884e+09 FLOPs
+ comp2: w=0.400085, mu_log=22.647155, sigma=0.062611, exp(mu)=6.84754e+09 FLOPs
+ comp3: w=0.162450, mu_log=22.311048, sigma=0.044115, exp(mu)=4.89289e+09 FLOPs
+
+--- sys_metrics_minibatch_c_20_mb_0.6 ---
+Normalization:
+ type=affine  desc=min–max robust (p1–p99)
+ a=660150750.0
+ b=2112482400.0
+
+[Normalized space]
+ k=3, loc_norm=-0.23668836246872393
+ comp1: w=0.322757, mu_log_norm=-0.672420, sigma=0.468138, exp(mu_norm)=0.510472
+ comp2: w=0.277957, mu_log_norm=0.114280, sigma=0.076662, exp(mu_norm)=1.12107
+ comp3: w=0.399286, mu_log_norm=-0.720131, sigma=0.001000, exp(mu_norm)=0.486688
+
+[Original units (FLOPs)]
+ loc=160150750.00000012
+ comp1: w=0.322757, mu_log=20.798709, sigma=0.468138, exp(mu)=1.07836e+09 FLOPs
+ comp2: w=0.277957, mu_log=21.585409, sigma=0.076662, exp(mu)=2.36823e+09 FLOPs
+ comp3: w=0.399286, mu_log=20.750998, sigma=0.001000, exp(mu)=1.02812e+09 FLOPs
+
+--- sys_metrics_minibatch_c_20_mb_0.5 ---
+Normalization:
+ type=affine  desc=min–max robust (p1–p99)
+ a=528120600.0
+ b=1716391950.0
+
+[Normalized space]
+ k=3, loc_norm=-2.680040535030475
+ comp1: w=0.514835, mu_log_norm=1.074571, sigma=0.018111, exp(mu_norm)=2.92874
+ comp2: w=0.400148, mu_log_norm=1.256491, sigma=0.043815, exp(mu_norm)=3.51307
+ comp3: w=0.085017, mu_log_norm=1.012500, sigma=0.033483, exp(mu_norm)=2.75247
+
+[Original units (FLOPs)]
+ loc=-4071879400.0
+ comp1: w=0.514835, mu_log=22.338061, sigma=0.018111, exp(mu)=5.02686e+09 FLOPs
+ comp2: w=0.400148, mu_log=22.519981, sigma=0.043815, exp(mu)=6.02981e+09 FLOPs
+ comp3: w=0.085017, mu_log=22.275990, sigma=0.033483, exp(mu)=4.72432e+09 FLOPs
+
+--- sys_metrics_minibatch_c_20_mb_0.4 ---
+Normalization:
+ type=affine  desc=min–max robust (p1–p99)
+ a=396090450.0
+ b=1452331650.0
+
+[Normalized space]
+ k=3, loc_norm=-2.8368176098069613
+ comp1: w=0.151228, mu_log_norm=1.084508, sigma=0.029538, exp(mu_norm)=2.95798
+ comp2: w=0.400025, mu_log_norm=1.289083, sigma=0.039426, exp(mu_norm)=3.62946
+ comp3: w=0.448747, mu_log_norm=1.134476, sigma=0.001000, exp(mu_norm)=3.10954
+
+[Original units (FLOPs)]
+ loc=-3723909550.0000005
+ comp1: w=0.151228, mu_log=22.180944, sigma=0.029538, exp(mu)=4.29597e+09 FLOPs
+ comp2: w=0.400025, mu_log=22.385519, sigma=0.039426, exp(mu)=5.27118e+09 FLOPs
+ comp3: w=0.448747, mu_log=22.230913, sigma=0.001000, exp(mu)=4.51609e+09 FLOPs
+
+--- sys_metrics_minibatch_c_20_mb_0.2 ---
+Normalization:
+ type=affine  desc=min–max robust (p1–p99)
+ a=132030150.0
+ b=792180900.0
+
+[Normalized space]
+ k=3, loc_norm=-5.8067544925660295
+ comp1: w=0.449573, mu_log_norm=1.814839, sigma=0.001000, exp(mu_norm)=6.14009
+ comp2: w=0.400166, mu_log_norm=1.883405, sigma=0.021879, exp(mu_norm)=6.57586
+ comp3: w=0.150261, mu_log_norm=1.777953, sigma=0.013458, exp(mu_norm)=5.91773
+
+[Original units (FLOPs)]
+ loc=-4467969850.000001
+ comp1: w=0.449573, mu_log=22.305139, sigma=0.001000, exp(mu)=4.86406e+09 FLOPs
+ comp2: w=0.400166, mu_log=22.373705, sigma=0.021879, exp(mu)=5.20927e+09 FLOPs
+ comp3: w=0.150261, mu_log=22.268253, sigma=0.013458, exp(mu)=4.68791e+09 FLOPs
+

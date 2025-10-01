@@ -265,7 +265,7 @@ for group_name, file_bases in file_groups:
     plt.tight_layout(rect=[0, 0, 1, 0.93])
 
     base_tag = re.sub(r"\.csv$", "", os.path.basename(ensure_csv(file_bases[0])))
-    out_path = os.path.join("figures/acc_loss_vs_rounds", f"plot_trainLoss_testAcc_{group_name}.png")
+    out_path = os.path.join("figures", f"plot_trainLoss_testAcc_{group_name}.png")
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
     # plt.show()
     print(f"[ok] figure saved at: {out_path}")
