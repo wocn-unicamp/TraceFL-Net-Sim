@@ -52,6 +52,14 @@ def smoothed_cdf_from_hist(vals, bins=256, smooth_window=7):
     x = edges[1:]
     return x, cdf
 
+def ks_metrics(v, best, x_sm, y_sm):
+    x_ecdf, y_ecdf = ecdf_xy(v)
+    Fm_ecdf = mixture_cdf_lognorm_shift(x_ecdf, best["w"], best["mu"], best["sigma"], best["loc"])
+    Fm_sm   = mixture_cdf_lognorm_shift(x_sm,   best["w"], best["mu"], best["sigma"], best["loc"])
+    ks1 = float(np.max(np.abs(Fm_ecdf - y_ecdf)))  # KS modelo vs ECDF
+    ks2 = float(np.max(np.abs(Fm_sm   - y_sm  )))  # KS modelo vs CDF suavizada
+    return ks1, ks2
+
 # ======= Mixture of shifted lognormals (EM + grid over loc) =======
 def mixture_cdf_lognorm_shift(x, w, mu, sigma, loc):
     x = np.asarray(x, dtype=float)
@@ -66,10 +74,10 @@ def fit_mix_lognorm_shift_to_smoothed(v, k_range=(1,2,3), loc_grid=None,
                                       bins=BINS, smooth_window=SMOOTH_WINDOW,
                                       random_state=RANDOM_STATE, n_init=5):
     # Fit a mixture of shifted lognormals to the smoothed CDF of v
-    x_s, y_s = smoothed_cdf_from_hist(v, bins=bins, smooth_window=smooth_window)
+    # x_s, y_s = smoothed_cdf_from_hist(v, bins=bins, smooth_window=smooth_window)
 
     # Fit to empirical CDF directly (mais estável)
-    # x_s, y_s = ecdf_xy(v)
+    x_s, y_s = ecdf_xy(v)
 
 
     vmin = float(np.min(v))
@@ -130,7 +138,7 @@ def plot_model(v, x_sm, y_sm, best, out_path=OUT_FIG_MODEL):
 
     plt.figure(figsize=(11,5))
     plt.step(x_ecdf, y_ecdf, where="post", lw=1.8, label="Empirical ECDF")
-    plt.plot(x_sm, y_sm, lw=2.0, label=f"Smoothed CDF (bins={BINS}, win={SMOOTH_WINDOW})")
+    # plt.plot(x_sm, y_sm, lw=2.0, label=f"Smoothed CDF (bins={BINS}, win={SMOOTH_WINDOW})")
     plt.plot(xfit, yfit, "--", lw=2.2, label=f"{best['model']}, loc={best['loc']:.1f}")
     plt.ylim(0,1)
     plt.xlabel(X_LABEL)
@@ -166,7 +174,7 @@ def plot_fit_and_simulation(
     ax1, ax2 = fig.subplots(1, 2, sharey=True)
 
     ax1.step(x_ecdf, y_ecdf, where="post", lw=1.8, label="Empirical ECDF")
-    ax1.plot(x_sm, y_sm, lw=2.0, label=f"Smoothed CDF (bins={BINS}, win={SMOOTH_WINDOW})")
+    # ax1.plot(x_sm, y_sm, lw=2.0, label=f"Smoothed CDF (bins={BINS}, win={SMOOTH_WINDOW})")
     ax1.plot(xfit, yfit, "--", lw=2.2, label=f"{best['model']}")
     ax1.set_title("Fit on real dataset")
     ax1.set_xlabel(X_LABEL)
@@ -208,6 +216,10 @@ def main():
         bins=BINS, smooth_window=SMOOTH_WINDOW,
         random_state=RANDOM_STATE, n_init=5
     )
+    
+    # Cálculo das métricas KS
+    ks_ecdf, ks_sm = ks_metrics(v, best, x_sm, y_sm)
+
 
     print("\n=== Best models (sorted by SSE) ===")
     print(summary.head(10).to_string(index=False))
@@ -217,7 +229,9 @@ def main():
         for i, (wi, mi, si) in enumerate(zip(best["w"], best["mu"], best["sigma"]), 1):
             scale_i = np.exp(mi)
             f.write(f" comp{i}: w={wi:.6f}, mu_log={mi:.6f}, sigma={si:.6f}, scale=exp(mu)={scale_i:.6f}\n")
-        f.write(f"SSE={best['sse']:.6f}, BIC={best['bic']:.2f}\n")
+        f.write(f"SSE={best['sse']:.6f}, BIC={best['bic']:.2f}\n") # Métricas de ajuste
+        f.write(f"KS_ECDF={ks_ecdf:.6f}, KS_Smoothed={ks_sm:.6f}\n") # Métricas KS
+
     print(f"\nParameters saved to: {OUT_TXT}")
 
     plot_model(v, x_sm, y_sm, best, out_path=OUT_FIG_MODEL)
@@ -236,6 +250,8 @@ def main():
     print("\n=== Summary statistics ===")
     print(f"Real:     mean={np.mean(v):.1f}, median={np.median(v):.1f}, std={np.std(v, ddof=1):.1f}")
     print(f"Simulated: mean={np.mean(sim):.1f}, median={np.median(sim):.1f}, std={np.std(sim, ddof=1):.1f}")
+    print(f"(n_real={len(v)}, n_sim={n_sim})")
+    print(f"KS_ECDF={ks_ecdf:.6f}, KS_Smoothed={ks_sm:.6f}")
 
 if __name__ == "__main__":
     main()

@@ -76,8 +76,8 @@ def main():
         print('--- Round %d of %d: Training %d Clients ---' % (i + 1, num_rounds, clients_per_round))
 
         # Select clients to train this round
-        if i < 1: # First round we select the same clients to have a better comparison
-            server.select_clients(i, online(clients), num_clients=clients_per_round)
+        #if i < 1: # First round we select the same clients to have a better comparison
+        server.select_clients(i, online(clients), num_clients=clients_per_round)
 
         c_ids, c_groups, c_num_samples = server.get_clients_info(server.selected_clients)
 
