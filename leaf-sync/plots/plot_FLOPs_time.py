@@ -16,6 +16,15 @@ DPI              = 150
 SORT_BARS        = True                    # <<--- ORDENAR BARRAS POR CAPACIDAD
 
 # ===================== Utilidades =====================
+
+# ===================== Config (añade esto) =====================
+N_ROUNDS        = 100          # número de rondas/iteraciones por cliente
+T_MAX_SECONDS   = 5           # ventana [0,1),...,[4,5] s
+SHOW_ERRORBARS  = True        # barras de error (desv. estándar entre rondas)
+INCLUDE_OVERFLOW_NOTE = True  # anotar cuántas tareas quedan > T_MAX_SECONDS
+# ===================== Fin Config =====================
+
+
 _float = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
 
 def ensure_dir(path):
@@ -84,45 +93,82 @@ SCENARIOS = [
 ]
 
 def plot_for_scenario(params, tag, title, cap_sampler):
+    """
+    Genera la figura de 3 paneles para un escenario de capacidades:
+      (1) Barras de capacidad por cliente (ordenadas opcionalmente),
+      (2) CDF de tiempos (Monte Carlo poblacional),
+      (3) Carga por segundo (Mbit/s) PROMEDIO sobre N_ROUNDS con IC95%.
+
+    Requiere en el ámbito global:
+      - ensure_dir, sample_flops, ecdf_xy
+      - OUT_DIR, FIG_SIZE, DPI
+      - N_CLIENTS, N_SAMPLES_CDF, MB_PER_CLIENT, MBIT_PER_CLIENT
+      - SORT_BARS, BASE_SEED
+      - N_ROUNDS, T_MAX_SECONDS, SHOW_ERRORBARS, INCLUDE_OVERFLOW_NOTE
+    """
     ensure_dir(OUT_DIR)
 
-    # Semillas por escenario
-    rng_caps_30   = np.random.default_rng(BASE_SEED + hash(tag) % 10_000)
-    rng_caps_many = np.random.default_rng(BASE_SEED + hash(tag) % 10_000 + 1)
-    seed_flops_30 = BASE_SEED + hash(tag) % 10_000 + 2
-    seed_flops_mc = BASE_SEED + hash(tag) % 10_000 + 3
+    # Semillas deterministas por 'tag' (evitar hash() salado de Python)
+    tag_offset = sum(tag.encode("utf-8")) % 10_000
+    base = BASE_SEED + tag_offset
+    rng_caps_30   = np.random.default_rng(base + 0)
+    rng_caps_many = np.random.default_rng(base + 1)
+    seed_flops_30 = base + 2
+    seed_flops_mc = base + 3
 
     # Capacidades (GFLOPs/s)
-    caps_30_gflops   = cap_sampler(N_CLIENTS, rng_caps_30)
-    caps_many_gflops = cap_sampler(N_SAMPLES_CDF, rng_caps_many)
+    caps_30_gflops   = cap_sampler(N_CLIENTS, rng_caps_30)        # fijas por cliente a lo largo de las rondas
+    caps_many_gflops = cap_sampler(N_SAMPLES_CDF, rng_caps_many)  # para CDF poblacional
 
-    # ---- ORDENAMOS LAS BARRAS PARA MOSTRAR LA DISTRIBUCIÓN ----
+    # Barras de capacidad (solo estética de orden)
     if SORT_BARS:
         caps_plot = np.sort(caps_30_gflops)
-        x_clients = np.arange(1, N_CLIENTS + 1)  # “rank” del cliente (1..N)
+        x_clients = np.arange(1, N_CLIENTS + 1)
         x_label   = "Client rank (ascending capacity)"
     else:
         caps_plot = caps_30_gflops
         x_clients = np.arange(1, N_CLIENTS + 1)
         x_label   = "Client ID"
 
-    # Tiempos para CDF (Monte Carlo): N_SAMPLES_CDF tareas
+    # --------- CDF de tiempos (Monte Carlo poblacional) ----------
     flops_mc  = sample_flops(N_SAMPLES_CDF, params=params, seed=seed_flops_mc)
     time_s_mc = flops_mc / (caps_many_gflops * 1e9)
     x_t, y_t  = ecdf_xy(time_s_mc)
 
-    # Carga por segundo (30 clientes, 1 envío c/u)
-    flops_30   = sample_flops(N_CLIENTS, params=params, seed=seed_flops_30)
-    time_s_30  = flops_30 / (caps_30_gflops * 1e9)
-    edges_sec  = np.arange(0, 5 + 1, 1)          # [0,1),...,[4,5]
-    counts, _  = np.histogram(time_s_30, bins=edges_sec)
-    load_mbit_s= counts * MBIT_PER_CLIENT
-    centers    = edges_sec[:-1] + 0.5
+    # --------- MÚLTIPLES RONDAS por cliente ----------
+    edges_sec = np.arange(0, T_MAX_SECONDS + 1, 1)   # [0,1),[1,2),...,[T_MAX_SECONDS-1,T_MAX_SECONDS]
+    centers   = edges_sec[:-1] + 0.5
+    R         = int(N_ROUNDS)
 
-    # Figura (3 subfiguras)
+    counts_rounds   = np.zeros((R, edges_sec.size - 1), dtype=int)
+    overflow_rounds = np.zeros(R, dtype=int)
+
+    for r in range(R):
+        # FLOPs independientes por ronda; capacidades constantes por cliente
+        flops_r  = sample_flops(N_CLIENTS, params=params, seed=seed_flops_30 + 1000 * r)
+        time_s_r = flops_r / (caps_30_gflops * 1e9)
+
+        c, _ = np.histogram(time_s_r, bins=edges_sec)
+        counts_rounds[r]   = c
+        overflow_rounds[r] = np.count_nonzero(time_s_r >= edges_sec[-1])
+
+    # Carga por segundo (Mbit/s)
+    load_mbit_s_rounds = counts_rounds * MBIT_PER_CLIENT
+    mean_load          = load_mbit_s_rounds.mean(axis=0)
+    if R > 1:
+        std_load  = load_mbit_s_rounds.std(axis=0, ddof=1)
+        sem_load  = std_load / np.sqrt(R)
+        ci95      = 1.96 * sem_load
+    else:
+        ci95 = np.zeros_like(mean_load)
+
+    mean_overflow = overflow_rounds.mean()
+    frac_overflow = (mean_overflow / N_CLIENTS) if N_CLIENTS else 0.0
+
+    # --------------------- FIGURA ---------------------
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=FIG_SIZE, layout="constrained")
 
-    # 1) Barras por cliente (ordenadas para ver la distribución)
+    # (1) Capacidades por cliente
     ax1.bar(x_clients, caps_plot, width=0.8, align="center",
             alpha=0.85, edgecolor="none", label=f"N={N_CLIENTS}")
     ax1.set_title(f"Capacity per client — {title}")
@@ -137,33 +183,50 @@ def plot_for_scenario(params, tag, title, cap_sampler):
     ax1.grid(True, axis="y", alpha=0.3)
     ax1.legend(loc="upper left")
 
-    # 2) CDF del tiempo (s), eje 0–5 s
-    ax2.step(x_t, y_t, where="post", lw=3.0, color="1.0")                   # halo
+    # (2) CDF de tiempos
+    ax2.step(x_t, y_t, where="post", lw=3.0, color="1.0")  # halo
     ax2.step(x_t, y_t, where="post", lw=1.6, ls=(0, (4, 2)), color="0.15", label="Time CDF")
     ax2.set_title("Time CDF (tasks across capacity distribution)")
     ax2.set_xlabel("Time (s)")
     ax2.set_ylabel("Cumulative Probability")
-    ax2.set_xlim(0, 5)
+    ax2.set_xlim(0, T_MAX_SECONDS)
     ax2.set_ylim(0, 1)
     ax2.grid(True, alpha=0.3)
     ax2.legend(loc="lower right")
 
-    # 3) Carga por Mbit/s (0–5 s)
-    ax3.bar(centers, load_mbit_s, width=0.9, align="center",
-            alpha=0.85, edgecolor="none", label=f"{MB_PER_CLIENT} MB × 8 per client")
-    ax3.set_title("Per-second load (Mbit/s) for 30 clients")
+    # (3) Carga media por segundo + IC95%
+    ax3.bar(centers, mean_load, width=0.9, align="center",
+            alpha=0.85, edgecolor="none",
+            label=f"Mean over {R} rounds ({MB_PER_CLIENT} MB × 8/client)")
+    if SHOW_ERRORBARS and R > 1:
+        ax3.errorbar(centers, mean_load, yerr=ci95,
+                     fmt='none', capsize=3, alpha=0.7, lw=1.2)
+
+    ax3.set_title("Per-second load (Mbit/s) — mean over rounds")
     ax3.set_xlabel("Time (s)")
     ax3.set_ylabel("Load (Mbit/s)")
-    ax3.set_xlim(0, 5)
-    ax3.set_xticks(np.arange(0, 6, 1))
+    ax3.set_xlim(0, T_MAX_SECONDS)
+    ax3.set_xticks(np.arange(0, T_MAX_SECONDS + 1, 1))
     ax3.grid(True, axis="y", alpha=0.3)
     ax3.legend(loc="upper right")
 
-    out_path = os.path.join(OUT_DIR, f"capacity_time_and_load_{tag}.png")
+    if INCLUDE_OVERFLOW_NOTE and mean_overflow > 0:
+        ax3.text(0.02, 0.95,
+                 f"Avg. tasks > {T_MAX_SECONDS}s per round: {mean_overflow:.2f} "
+                 f"({100*frac_overflow:.1f}%)",
+                 transform=ax3.transAxes, va="top", ha="left", fontsize=9)
+
+    out_path = os.path.join(OUT_DIR, f"capacity_time_and_load_{tag}_multi.png")
     plt.savefig(out_path, dpi=DPI)
     plt.close()
+
+    # Resumen en consola
     print(f"Figura guardada: {out_path}")
-    print("  counts 0-1..4-5:", counts, "| load Mbit/s:", load_mbit_s)
+    print("  mean counts per 1s bin:", counts_rounds.mean(axis=0).round(2),
+          "| mean load (Mbit/s):", mean_load.round(1))
+    print(f"  mean overflow > {T_MAX_SECONDS}s: {mean_overflow:.2f} "
+          f"({100*frac_overflow:.1f}% de {N_CLIENTS})")
+
 
 # ===================== Run =====================
 if __name__ == "__main__":
