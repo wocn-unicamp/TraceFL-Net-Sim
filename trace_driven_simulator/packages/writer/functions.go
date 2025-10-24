@@ -34,6 +34,8 @@ func (w *Writer) Start() {
 
 	w.csvWriter.Flush()
 
+	w.wg.Add(1)
+
 	go w.aggregator()
 }
 
@@ -43,7 +45,7 @@ func (w *Writer) Write(register *WriterRegister) {
 
 func (w *Writer) Close() {
 	close(w.aggregationChannel)
-	w.write()
+	w.wg.Wait()
 }
 
 func (w *Writer) write() {
@@ -75,6 +77,8 @@ func (w *Writer) write() {
 }
 
 func (w *Writer) aggregator() {
+	defer w.wg.Done()
+
 	for reg := range w.aggregationChannel {
 		if len(w.aggregationBuffer) >= int(w.maxBufferSize) {
 			w.write()
@@ -82,5 +86,9 @@ func (w *Writer) aggregator() {
 		}
 
 		w.aggregationBuffer = append(w.aggregationBuffer, reg)
+	}
+
+	if len(w.aggregationBuffer) > 0 {
+		w.write()
 	}
 }

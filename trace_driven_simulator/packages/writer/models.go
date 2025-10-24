@@ -1,6 +1,9 @@
 package writer
 
-import "encoding/csv"
+import (
+	"encoding/csv"
+	"sync"
+)
 
 type WriterRegister struct {
 	ClientID           uint16
@@ -19,4 +22,5 @@ type Writer struct {
 	aggregationBuffer  []*WriterRegister
 	filename           string
 	csvWriter          *csv.Writer
+	wg                 sync.WaitGroup
 }
