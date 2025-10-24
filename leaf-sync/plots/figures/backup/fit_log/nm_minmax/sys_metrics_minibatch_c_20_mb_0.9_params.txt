@@ -1,0 +1,15 @@
+Best (normalized space): mixlognorm(k=3)  note=raw  loc_norm=-1.4516886231415074
+ comp1: w=0.132735, mu_log_norm=0.434468, sigma=0.051621, exp(mu_norm)=1.54414
+ comp2: w=0.400156, mu_log_norm=0.805437, sigma=0.070665, exp(mu_norm)=2.23767
+ comp3: w=0.467109, mu_log_norm=0.523305, sigma=0.018662, exp(mu_norm)=1.6876
+
+Normalization:
+ type=affine  desc=min–max
+ a=1056241200.0
+ b=3168723600.0
+
+Converted to original units:
+ loc=-3543758800.000001
+ comp1: w=0.132735, mu_log=22.311062, sigma=0.051621, exp(mu)=4.89295e+09 FLOPs
+ comp2: w=0.400156, mu_log=22.682032, sigma=0.070665, exp(mu)=7.09057e+09 FLOPs
+ comp3: w=0.467109, mu_log=22.399900, sigma=0.018662, exp(mu)=5.34753e+09 FLOPs
