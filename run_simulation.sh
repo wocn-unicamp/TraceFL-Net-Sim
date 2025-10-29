@@ -78,22 +78,31 @@ for flops in "${flop_val[@]}"; do
 
       if [ "${algorithm}" == "minibatch" ]; then
         # Skip minibatch for Shakespeare as it is not implemented
-        if [ "${dataset}" == "shakespeare" ]; then
-            echo "Skipping Minibatch for Shakespeare dataset."
-            continue
+        if [ "${dataset}" == "femnist" ]; then
+            for minibatch_val in "${minibatch_vals[@]}"; do
+              echo "Running Minibatch simulation with minibatch value: ${minibatch_val}..."
+
+              trace_file="trace_driven_simulator/data/homogeneus/${flops}/sys_metrics_${dataset}_${algorithm}_c_20_mb_${minibatch_val}.csv"
+              echo "Using trace file: ${trace_file}"
+
+              go run trace_driven_simulator/main.go -t "${trace_file}" -clients-b "${clients_bwd}" -server-b "${server_bwd}" -bg-workload "${clients_bwd}" > "trace_driven_homogeneus_${dataset}_${algorithm}_c_20_mb_${minibatch_val}_fp_${flops}.csv"
+              
+              mv "metrics_network_${dataset}_minibatch_c_20_mb_${minibatch_val}.csv" "metrics_network_homogeneus_${dataset}_minibatch_c_20_mb_${minibatch_val}_fp_${flops}.csv"
+              echo "Minibatch simulation complete. Results saved."
+            done
+        else # shakespeare
+            for minibatch_val in "${minibatch_vals[@]}"; do
+              echo "Running Minibatch simulation with minibatch value: ${minibatch_val}..."
+
+              trace_file="trace_driven_simulator/data/homogeneus/${flops}/sys_metrics_${dataset}_${algorithm}_c_10_mb_${minibatch_val}.csv"
+              echo "Using trace file: ${trace_file}"
+
+              go run trace_driven_simulator/main.go -t "${trace_file}" -clients-b "${clients_bwd}" -server-b "${server_bwd}" -bg-workload "${clients_bwd}" > "trace_driven_homogeneus_${dataset}_${algorithm}_c_10_mb_${minibatch_val}_fp_${flops}.csv"
+              
+              mv "metrics_network_${dataset}_minibatch_c_10_mb_${minibatch_val}.csv" "metrics_network_homogeneus_${dataset}_minibatch_c_10_mb_${minibatch_val}_fp_${flops}.csv"
+              echo "Minibatch simulation complete. Results saved."
+            done
         fi
-
-        for minibatch_val in "${minibatch_vals[@]}"; do
-          echo "Running Minibatch simulation with minibatch value: ${minibatch_val}..."
-
-          trace_file="trace_driven_simulator/data/homogeneus/${flops}/sys_metrics_${dataset}_${algorithm}_c_20_mb_${minibatch_val}.csv"
-          echo "Using trace file: ${trace_file}"
-
-          go run trace_driven_simulator/main.go -t "${trace_file}" -clients-b "${clients_bwd}" -server-b "${server_bwd}" -bg-workload "${clients_bwd}" > "trace_driven_homogeneus_${dataset}_${algorithm}_c_20_mb_${minibatch_val}_fp_${flops}.csv"
-          
-          mv "metrics_network_${dataset}_minibatch_c_20_mb_${minibatch_val}.csv" "metrics_network_homogeneus_${dataset}_minibatch_c_20_mb_${minibatch_val}_fp_${flops}.csv"
-          echo "Minibatch simulation complete. Results saved."
-        done
       else # This block handles FedAvg
         # Select the correct list of clients based on the dataset
         declare -a nclients_list
