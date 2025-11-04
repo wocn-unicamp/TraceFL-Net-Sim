@@ -1,0 +1,9 @@
+Best: Mix Lognorm Function  loc=-2703373266.2288136
+ comp1: w=0.205778, mu_log=22.282197, sigma=0.064003, scale=exp(mu)=4753738292.465752
+ comp2: w=0.681516, mu_log=22.008916, sigma=0.055175, scale=exp(mu)=3617020632.160248
+ comp3: w=0.112705, mu_log=22.221708, sigma=0.082857, scale=exp(mu)=4474712607.262146
+upper_trunc=2540664672.851562  Fu=0.984000  tail_mass_cut=0.016000
+BIC=-38116.73
+KS_ECDF=0.139136
+SSE=59.090928
+anti_spike_penalty=0.000000e+00

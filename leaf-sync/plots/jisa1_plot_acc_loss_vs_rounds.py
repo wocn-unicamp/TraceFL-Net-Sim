@@ -6,7 +6,7 @@ from matplotlib.ticker import MultipleLocator
 
 # ================================ Config =====================================
 
-folder_path = "../results/stat/"
+folder_path = "../results_backup/stat/"
 
 file_bases_1 = [
     "stat_metrics_fedavg_c_50_e_1",

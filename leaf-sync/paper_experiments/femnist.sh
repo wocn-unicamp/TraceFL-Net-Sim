@@ -12,13 +12,13 @@ sampling_seed="1549786595"
 num_rounds="1000"
 
 fedavg_lr="0.004"
-declare -a fedavg_vals=( "30 1" "20 1" "10 1" "5 1" "3 1") # (num_clients num_epochs)
+# declare -a fedavg_vals=( "30 1" "20 1" "10 1" "5 1" "3 1") # (num_clients num_epochs)
 
 
 # minibatch_lr="0.06"
 minibatch_lr="0.004"
-# declare -a minibatch_vals=("20 0.9" "20 0.8"  "20 0.6" "20 0.5" "20 0.4" "20 0.2") # (num_clients minibatch_fraction)
-declare -a minibatch_vals=("20 1") # (num_clients minibatch_fraction)
+declare -a minibatch_vals=("30 0.9" "30 0.8"  "30 0.6" "30 0.5" "30 0.4" "30 0.2" "30 0.1") # (num_clients minibatch_fraction)
+# declare -a minibatch_vals=("20 1") # (num_clients minibatch_fraction)
 
 ###################### Functions ###################################
 
@@ -138,11 +138,11 @@ for val_pair in "${minibatch_vals[@]}"; do
 done
 
 # Run FedAvg experiments
-for val_pair in "${fedavg_vals[@]}"; do
-  clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
-  num_epochs="$(echo ${val_pair} | cut -d' ' -f2)"
-  echo "Running FedAvg: epochs=${num_epochs}, clients=${clients_per_round}"
-  run_fedavg "${clients_per_round}" "${num_epochs}"
-done
+# for val_pair in "${fedavg_vals[@]}"; do
+#   clients_per_round="$(echo ${val_pair} | cut -d' ' -f1)"
+#   num_epochs="$(echo ${val_pair} | cut -d' ' -f2)"
+#   echo "Running FedAvg: epochs=${num_epochs}, clients=${clients_per_round}"
+#   run_fedavg "${clients_per_round}" "${num_epochs}"
+# done
 
 popd >/dev/null
