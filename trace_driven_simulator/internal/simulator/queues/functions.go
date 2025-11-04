@@ -2,8 +2,10 @@ package queues
 
 import (
 	"container/heap"
+	"fmt"
 	"log"
 	"math"
+	"os"
 
 	"github.com/Marco-Guerra/Federated-Learning-Network-Workload/trace_driven_simulator/packages/writer"
 )
@@ -18,11 +20,10 @@ func New(options *GlobalOptions, workload *EventHeap, rwritter *writer.Writer) *
 }
 
 func (evq *EventQueue) Start() *Output {
-	numPackets, totalBytes, simTime, totalDelay, outWorkload := evq.processEvents()
+	numPackets, simTime, totalDelay, outWorkload := evq.processEvents()
 
 	return &Output{
 		SimTime:    simTime,
-		TotalBytes: totalBytes,
 		Delay:      totalDelay,
 		NumPackets: uint32(numPackets),
 		Bandwidth:  evq.options.Bandwidth,
@@ -57,7 +58,7 @@ func (evq *EventQueue) cleanBuffer() {
 	}
 }
 
-func (evq *EventQueue) processEvents() (int, uint64, float64, float64, *EventHeap) {
+func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
 	numPackets := evq.events.Len()
 	var totalBytes uint64 = 0
 	var totalDelay float64 = 0
@@ -77,6 +78,11 @@ func (evq *EventQueue) processEvents() (int, uint64, float64, float64, *EventHea
 			qlen := len(evq.queue)
 
 			if qlen == 0 || evq.queue[qlen-1].DepartureTime < event.Packet.ArrivalTime {
+				if event.Packet == nil {
+					fmt.Println("Memory error: a nil packets was find on the queue")
+					fmt.Println(evq.options.NetType, event)
+					os.Exit(2)
+				}
 				event.Packet.StartServiceTime = event.Packet.ArrivalTime
 			} else {
 				event.Packet.StartServiceTime = evq.queue[qlen-1].DepartureTime
@@ -151,5 +157,5 @@ func (evq *EventQueue) processEvents() (int, uint64, float64, float64, *EventHea
 		}
 	}
 
-	return numPackets, totalBytes, evq.currentTime - simStartTime, totalDelay, outWorkload
+	return numPackets, evq.currentTime - simStartTime, totalDelay, outWorkload
 }

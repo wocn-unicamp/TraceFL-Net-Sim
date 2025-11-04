@@ -53,7 +53,6 @@ type Output struct {
 	Bandwidth  uint32
 	SimTime    float64
 	Delay      float64
-	TotalBytes uint64
 	Workload   *EventHeap
 }
 
@@ -67,6 +66,7 @@ type GlobalOptions struct {
 	BackgroundWorkload uint32
 	ChannelLength      float32
 	PropagationSpeed   float32
+	EvalTime           float64
 }
 
 type EventQueue struct {

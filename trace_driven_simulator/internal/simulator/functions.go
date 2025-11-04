@@ -29,16 +29,10 @@ func (td *TraceDriven) RunSimulation(trace_filename string) {
 	td.resultsWritter.Close()
 }
 
-func (td *TraceDriven) calculeMetrics(results *queues.Output) (float64, uint32) {
+func (td *TraceDriven) calculeMetrics(results *queues.Output) float64 {
 	meanDelay := results.Delay / float64(results.NumPackets)
 
-	if results.SimTime <= 0 {
-		results.SimTime = 1
-	}
-
-	throughput := float64(results.TotalBytes*8) / results.SimTime
-
-	return meanDelay, uint32(math.Floor(math.Min(float64(throughput), float64(results.Bandwidth))))
+	return meanDelay
 }
 
 func (td *TraceDriven) readTrace(traceFilename string) {
@@ -115,12 +109,16 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 		queuesOPT[i] = &queues.GlobalOptions{
 			Bandwidth:        td.options.ClientsBandwidth,
 			NetType:          queues.CLIENT,
+			EvalTime:         EVAL_TIME,
 			PropagationSpeed: PROP_SPEED,
 			ChannelLength:    CHANN_LEN,
 		}
 	}
 
 	for round := 1; round <= rounds; round++ {
+		if round >= td.options.MaxNumberOfRounds && td.options.MaxNumberOfRounds != -1 {
+			break
+		}
 		var clients [][]string
 		dqueues := make([]*queues.EventQueue, nclient)
 		workloads := make([]queues.EventHeap, nclient)
@@ -146,7 +144,7 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 			temp := messageSize
 
 			for messageSize > int(ETHERNET_MTU) {
-				packet := queues.Packet{
+				packet := &queues.Packet{
 					MSSSize:        uint32(temp),
 					MSSArrivalTime: time + currentTime,
 					ArrivalTime:    time + currentTime,
@@ -159,23 +157,23 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 					packet.Type = queues.FIRST
 				}
 
-				event := queues.Event{
+				event := &queues.Event{
 					Time:            packet.ArrivalTime,
 					RoundNumber:     uint16(round),
 					ClientID:        uint16(clientID),
 					ComputationTime: time,
-					Packet:          &packet,
+					Packet:          packet,
 					Type:            queues.ARRIVAL,
 				}
 
-				heap.Push(&workloads[clientID-1], &event)
+				heap.Push(&workloads[clientID-1], event)
 
 				messageSize -= int(ETHERNET_MTU)
 
 				packetCounter++
 			}
 
-			packet := queues.Packet{
+			packet := &queues.Packet{
 				MSSSize:        uint32(temp),
 				MSSArrivalTime: time + currentTime,
 				ArrivalTime:    time + currentTime,
@@ -188,16 +186,16 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 				packet.Size = uint32(ETHERNET_MIN_FRAME)
 			}
 
-			event := queues.Event{
+			event := &queues.Event{
 				Time:            packet.ArrivalTime,
 				RoundNumber:     uint16(round),
 				ComputationTime: time,
 				ClientID:        uint16(clientID),
-				Packet:          &packet,
+				Packet:          packet,
 				Type:            queues.ARRIVAL,
 			}
 
-			heap.Push(&workloads[clientID-1], &event)
+			heap.Push(&workloads[clientID-1], event)
 
 			packetCounter++
 		}
@@ -212,14 +210,12 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 			}
 		}
 
-		currentTime += float64(SERVER_AGG_TIME + DOWNLINK_TIME)
-
 		for i := nFLClients; i < nclient; i++ {
 			var arrivalInterval float64 = 0
 			for localtime := float64(previousTime); localtime <= float64(currentTime); localtime += arrivalInterval {
 				mssSize := uint32(ETHERNET_MIN_FRAME) + rng.Uint32()%uint32(uint16(ETHERNET_MIN_FRAME-ETHERNET_HEADER)+ETHERNET_MTU+1)
 
-				packet := queues.Packet{
+				packet := &queues.Packet{
 					MSSSize:        mssSize,
 					ArrivalTime:    localtime,
 					MSSArrivalTime: localtime,
@@ -228,15 +224,15 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 					Id:             packetCounter,
 				}
 
-				event := queues.Event{
+				event := &queues.Event{
 					Time:        packet.ArrivalTime,
 					RoundNumber: 1001,
 					ClientID:    4096,
-					Packet:      &packet,
+					Packet:      packet,
 					Type:        queues.ARRIVAL,
 				}
 
-				heap.Push(&workloads[i], &event)
+				heap.Push(&workloads[i], event)
 
 				packetCounter++
 
@@ -265,13 +261,12 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 				}
 				tmutex.Unlock()
 
-				meanDelay, throughput := td.calculeMetrics(qout)
+				meanDelay := td.calculeMetrics(qout)
 
-				resultString := fmt.Sprintf("%d,%d,%f,%d\n",
+				resultString := fmt.Sprintf("%d,%d,%f\n",
 					round,
 					qid+1,
 					meanDelay,
-					throughput,
 				)
 
 				fmt.Print(resultString)
@@ -294,6 +289,7 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 			Bandwidth:          td.options.ServerBandwidth,
 			BackgroundWorkload: td.options.WorkloadBackgroundClients,
 			PacketHeader:       ETHERNET_HEADER,
+			EvalTime:           EVAL_TIME,
 			MinPacketSize:      ETHERNET_MIN_FRAME,
 			MaxPacketSize:      ETHERNET_MTU,
 			PropagationSpeed:   PROP_SPEED,
@@ -305,12 +301,11 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 
 		sqout := serverQueue.Start()
 
-		meanDelay, throughput := td.calculeMetrics(sqout)
+		meanDelay := td.calculeMetrics(sqout)
 
-		resultString := fmt.Sprintf("%d,0,%f,%d\n",
+		resultString := fmt.Sprintf("%d,0,%f\n",
 			round,
 			meanDelay,
-			throughput,
 		)
 
 		fmt.Print(resultString)
