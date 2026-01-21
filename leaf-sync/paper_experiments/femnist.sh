@@ -13,12 +13,13 @@ num_rounds="1000"
 
 fedavg_lr="0.004"
 # declare -a fedavg_vals=( "30 1" "20 1" "10 1" "5 1" "3 1") # (num_clients num_epochs)
+declare -a fedavg_vals=( "64 2") # (num_clients num_epochs)
 
 
 # minibatch_lr="0.06"
 minibatch_lr="0.004"
-declare -a minibatch_vals=("30 0.9" "30 0.8"  "30 0.6" "30 0.5" "30 0.4" "30 0.2" "30 0.1") # (num_clients minibatch_fraction)
-# declare -a minibatch_vals=("20 1") # (num_clients minibatch_fraction)
+# declare -a minibatch_vals=("30 0.9" "30 0.8"  "30 0.6" "30 0.5" "30 0.4" "30 0.2" "30 0.1") # (num_clients minibatch_fraction)
+declare -a minibatch_vals=("20 1") # (num_clients minibatch_fraction)
 
 ###################### Functions ###################################
 
