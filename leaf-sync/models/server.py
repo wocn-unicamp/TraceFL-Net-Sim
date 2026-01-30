@@ -1,6 +1,6 @@
 import numpy as np
-
-from baseline_constants import BYTES_WRITTEN_KEY, BYTES_READ_KEY, LOCAL_COMPUTATIONS_KEY
+import time
+from baseline_constants import BYTES_WRITTEN_KEY, BYTES_READ_KEY, LOCAL_COMPUTATIONS_KEY, LOCAL_TIME_KEY
 
 class Server:
     
@@ -49,23 +49,75 @@ class Server:
             bytes_read: number of bytes read by each client from server
                 dictionary with client ids as keys and integer values.
         """
+        # if clients is None:
+        #     clients = self.selected_clients
+        # sys_metrics = {
+        #     c.id: {BYTES_WRITTEN_KEY: 0,
+        #            BYTES_READ_KEY: 0,
+        #            LOCAL_COMPUTATIONS_KEY: 0} for c in clients}
+        # for c in clients:
+        #     c.model.set_params(self.model)
+        #     comp, num_samples, update = c.train(num_epochs, batch_size, minibatch)
+
+        #     sys_metrics[c.id][BYTES_READ_KEY] += c.model.size
+        #     sys_metrics[c.id][BYTES_WRITTEN_KEY] += c.model.size
+        #     sys_metrics[c.id][LOCAL_COMPUTATIONS_KEY] = comp
+
+        #     self.updates.append((num_samples, update))
+
+        # return sys_metrics
+
+        # Se não foi passada uma lista de clientes, usa a seleção da rodada atual
         if clients is None:
             clients = self.selected_clients
+
+        # Inicializa as métricas de sistema por cliente
+        # LOCAL_TIME_KEY armazena o tempo real (s) medido com perf_counter()
         sys_metrics = {
-            c.id: {BYTES_WRITTEN_KEY: 0,
-                   BYTES_READ_KEY: 0,
-                   LOCAL_COMPUTATIONS_KEY: 0} for c in clients}
+            c.id: {
+                BYTES_WRITTEN_KEY: 0,          # bytes enviados do cliente -> servidor (modelo/gradientes)
+                BYTES_READ_KEY: 0,             # bytes recebidos do servidor -> cliente (modelo global)
+                LOCAL_COMPUTATIONS_KEY: 0,     # custo computacional abstrato (FLOPs) retornado pelo cliente
+                LOCAL_TIME_KEY: 0.0,           # tempo real medido (s) do treinamento local do cliente
+            }
+            for c in clients
+        }
+
+        # Itera pelos clientes e executa treinamento local
         for c in clients:
+            # Envia (seta) os parâmetros do modelo global no modelo local do cliente
             c.model.set_params(self.model)
+
+            # Inicia contagem de tempo (wall-clock) para este cliente nesta rodada
+            # perf_counter() é adequado para medir intervalos curtos com alta resolução
+            t0 = time.perf_counter()
+
+            # Executa o treinamento local e obtém:
+            # comp: FLOPs (métrica abstrata)
+            # num_samples: número de amostras usadas
+            # update: pesos/gradientes atualizados
             comp, num_samples, update = c.train(num_epochs, batch_size, minibatch)
 
+            # Finaliza contagem de tempo para o cliente
+            t1 = time.perf_counter()
+
+            # Atualiza bytes lidos/escritos (aqui usando o tamanho do modelo como aproximação)
             sys_metrics[c.id][BYTES_READ_KEY] += c.model.size
             sys_metrics[c.id][BYTES_WRITTEN_KEY] += c.model.size
+
+            # Registra FLOPs (comp) do cliente nesta rodada
             sys_metrics[c.id][LOCAL_COMPUTATIONS_KEY] = comp
 
+            # Registra o tempo real (segundos) gasto no treinamento local do cliente
+            # sys_metrics[c.id][LOCAL_TIME_KEY] = (t1 - t0)
+            sys_metrics[c.id]["computingTime"] = (t1 - t0)
+
+            # Armazena update para agregação posterior no servidor
             self.updates.append((num_samples, update))
 
+        # Retorna métricas por cliente; o writer do .sys deve incluir LOCAL_TIME_KEY na coluna desejada
         return sys_metrics
+
 
     def update_model(self):
         total_weight = 0.

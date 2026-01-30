@@ -6,12 +6,24 @@ from matplotlib.ticker import MultipleLocator
 
 # ================================ Config =====================================
 
-folder_path = "../results_2026/stat/"
+# folder_path = "../results_2026/stat/"
+# file_bases_1 = [
+#     "stat_metrics_fedavg_c_64_e_1",
+#     "stat_metrics_fedavg_c_64_e_2",
+#     "stat_metrics_fedavg_c_64_e_3",
+# ]
 
+folder_path = "../results/stat/"
 file_bases_1 = [
+    # "stat_metrics_fedavg_c_10_e_1",
+    # "stat_metrics_fedavg_c_10_e_2",
+    # "stat_metrics_fedavg_c_10_e_3",
     "stat_metrics_fedavg_c_64_e_1",
     "stat_metrics_fedavg_c_64_e_2",
     "stat_metrics_fedavg_c_64_e_3",
+    "stat_metrics_fedavg_c_64_e_4",
+    "stat_metrics_fedavg_c_64_e_5",
+    "stat_metrics_fedavg_c_64_e_6",
 ]
 
 file_groups = [

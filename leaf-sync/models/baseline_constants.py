@@ -53,3 +53,4 @@ LOCAL_COMPUTATIONS_KEY = 'local_computations'
 NUM_ROUND_KEY = 'round_number'
 NUM_SAMPLES_KEY = 'num_samples'
 CLIENT_ID_KEY = 'client_id'
+LOCAL_TIME_KEY = 'computingTime'   # o el nombre que prefieras
