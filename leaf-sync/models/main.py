@@ -6,6 +6,7 @@ import os
 import sys
 import random
 import tensorflow as tf
+import time   
 
 import metrics.writer as metrics_writer
 
@@ -22,7 +23,14 @@ SYS_METRICS_PATH = 'metrics/sys_metrics.csv'
 
 def main():
 
+    # Parse arguments
     args = parse_args()
+
+    # -------------------------
+    # Global simulation start (t = 0)
+    # -------------------------
+    sim_start_time = time.perf_counter()
+
 
     # Set the random seed if provided (affects client sampling, and batching)
     random.seed(1 + args.seed)
@@ -58,7 +66,9 @@ def main():
     client_model = ClientModel(args.seed, *model_params)
 
     # Create server
-    server = Server(client_model)
+    # server = Server(client_model)
+    server = Server(client_model, sim_start_time=sim_start_time) 
+
 
     # Create clients
     clients = setup_clients(args.dataset, client_model, args.use_val_set)
@@ -91,7 +101,11 @@ def main():
         # Test model
         if (i + 1) % eval_every == 0 or (i + 1) == num_rounds:
             print_stats(i + 1, server, clients, client_num_samples, args, stat_writer_fn, args.use_val_set)
-    
+
+         # (Optional) total duration print
+        total_wall = time.perf_counter() - sim_start_time
+        print(f"[SIM] Total wall-clock duration: {total_wall:.3f} s")
+
     # Save server model
     ckpt_path = os.path.join('checkpoints', args.dataset)
     if not os.path.exists(ckpt_path):

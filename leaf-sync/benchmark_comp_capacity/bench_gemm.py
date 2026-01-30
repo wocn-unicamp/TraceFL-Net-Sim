@@ -1,71 +1,37 @@
-# -*- coding: utf-8 -*-
+import numpy as np
 import time
 import os
-import csv
-import numpy as np
-from datetime import datetime
 
-CSV_FILE = "bench_gemm_results.csv"
+def bench_gemm(N=2048, dtype=np.float32, repeats=5):
+    A = np.random.rand(N, N).astype(dtype)
+    B = np.random.rand(N, N).astype(dtype)
 
-def bench_gemm(n=4096, dtype=np.float32, warmup=2, iters=5):
-    A = np.random.rand(n, n).astype(dtype)
-    B = np.random.rand(n, n).astype(dtype)
-
-    # Warm-up
-    for _ in range(warmup):
-        _ = A @ B
+    # warm-up
+    np.dot(A, B)
 
     times = []
-    for _ in range(iters):
+    for _ in range(repeats):
         t0 = time.perf_counter()
-        _ = A @ B
+        np.dot(A, B)
         t1 = time.perf_counter()
         times.append(t1 - t0)
 
-    t = min(times)
-    flops = 2 * (n ** 3)
-    gflops = flops / t / 1e9
-    return t, gflops
+    best_time = min(times)
+    flops = 2 * (N ** 3)
+    gflops = flops / best_time / 1e9
 
-
-def append_csv(row: dict, filename: str = CSV_FILE):
-    file_exists = os.path.isfile(filename)
-
-    with open(filename, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=row.keys())
-
-        # Escribe header solo si el archivo no existe
-        if not file_exists:
-            writer.writeheader()
-
-        writer.writerow(row)
-
+    return gflops, best_time
 
 if __name__ == "__main__":
+    N = int(os.getenv("N", 2048))
+    dtype = os.getenv("DTYPE", "float32")
+    dtype = np.float32 if dtype == "float32" else np.float64
 
-    # Variables de entorno relevantes (las que tú ya controlas desde bash)
-    env = {
-        "OMP_NUM_THREADS": os.getenv("OMP_NUM_THREADS", ""),
-        "MKL_NUM_THREADS": os.getenv("MKL_NUM_THREADS", ""),
-        "OPENBLAS_NUM_THREADS": os.getenv("OPENBLAS_NUM_THREADS", ""),
-        "NUMEXPR_NUM_THREADS": os.getenv("NUMEXPR_NUM_THREADS", ""),
-    }
+    gflops, t = bench_gemm(N=N, dtype=dtype)
 
-    for dtype in (np.float32, np.float64):
-        n = 4096 if dtype == np.float32 else 3072
-        t, g = bench_gemm(n=n, dtype=dtype)
-
-        # Salida estándar (no la rompemos)
-        print(f"dtype={dtype.__name__}  best_time={t:.4f}s  approx_GFLOP/s={g:.2f}")
-
-        # Fila CSV
-        row = {
-            "timestamp": datetime.now().isoformat(timespec="seconds"),
-            "dtype": dtype.__name__,
-            "n": n,
-            "best_time_s": round(t, 6),
-            "gflops": round(g, 2),
-            **env,
-        }
-
-        append_csv(row)
+    print("================================")
+    print(f"N           = {N}")
+    print(f"dtype       = {dtype}")
+    print(f"time (s)    = {t:.6f}")
+    print(f"GFLOP/s     = {gflops:.2f}")
+    print("================================")

@@ -1,0 +1,11 @@
+OMP_NUM_THREADS=1 \
+MKL_NUM_THREADS=1 \
+OPENBLAS_NUM_THREADS=1 \
+python bench_gemm.py
+
+
+NCPU=$(nproc)
+OMP_NUM_THREADS=$NCPU \
+MKL_NUM_THREADS=$NCPU \
+OPENBLAS_NUM_THREADS=$NCPU \
+python bench_gemm.py

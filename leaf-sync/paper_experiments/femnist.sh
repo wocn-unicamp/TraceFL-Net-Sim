@@ -9,17 +9,17 @@ results_dir="${2:-./results}"     # métricas (tendrá subcarpetas sys/ y stat/)
 
 split_seed="1549786796"
 sampling_seed="1549786595"
-num_rounds="1000"
+num_rounds="100"
 
 fedavg_lr="0.004"
 # declare -a fedavg_vals=( "30 1" "20 1" "10 1" "5 1" "3 1") # (num_clients num_epochs)
-declare -a fedavg_vals=( "10 1" "10 2" "10 3") # (num_clients num_epochs)
-
+# declare -a fedavg_vals=( "12 1") # (num_clients num_epochs)
+declare -a fedavg_vals=( "64 1" "64 2" "64 3" "64 4" "64 5") # (num_clients num_epochs)
 
 # minibatch_lr="0.06"
 minibatch_lr="0.004"
 # declare -a minibatch_vals=("30 0.9" "30 0.8"  "30 0.6" "30 0.5" "30 0.4" "30 0.2" "30 0.1") # (num_clients minibatch_fraction)
-declare -a minibatch_vals=("20 0.5") # (num_clients minibatch_fraction)
+declare -a minibatch_vals=("12 0.5") # (num_clients minibatch_fraction)
 
 ###################### Functions ###################################
 
@@ -75,15 +75,28 @@ function run_fedavg() {
   local num_epochs="$2"
 
   pushd models/ >/dev/null
+
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    NUMEXPR_NUM_THREADS=1 \
+    KMP_BLOCKTIME=0 \
+    KMP_WARNINGS=0 \
+    KMP_SETTINGS=0 \
+    KMP_AFFINITY=disabled \
+    TF_NUM_INTRAOP_THREADS=1 \
+    TF_NUM_INTEROP_THREADS=1 \
     python main.py -dataset 'femnist' -model 'cnn' \
       --num-rounds "${num_rounds}" \
       --clients-per-round "${clients_per_round}" \
       --num-epochs "${num_epochs}" \
       -lr "${fedavg_lr}"
+
   popd >/dev/null
 
   move_data "${output_dir}" "${results_dir}" "fedavg_c_${clients_per_round}_e_${num_epochs}"
 }
+
 
 function run_minibatch() {
   local clients_per_round="$1"

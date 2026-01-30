@@ -4,11 +4,15 @@ from baseline_constants import BYTES_WRITTEN_KEY, BYTES_READ_KEY, LOCAL_COMPUTAT
 
 class Server:
     
-    def __init__(self, client_model):
+    def __init__(self, client_model, sim_start_time=None):
         self.client_model = client_model
         self.model = client_model.get_params()
         self.selected_clients = []
         self.updates = []
+
+        # Global start of simulation (t=0 reference)
+        self.sim_start_time = sim_start_time if sim_start_time is not None else time.perf_counter()
+
 
     def select_clients(self, my_round, possible_clients, num_clients=20):
         """Selects num_clients clients randomly from possible_clients.
@@ -91,6 +95,8 @@ class Server:
             # Inicia contagem de tempo (wall-clock) para este cliente nesta rodada
             # perf_counter() é adequado para medir intervalos curtos com alta resolução
             t0 = time.perf_counter()
+            sys_metrics[c.id]["sim_time_start"] = t0 - self.sim_start_time
+
 
             # Executa o treinamento local e obtém:
             # comp: FLOPs (métrica abstrata)
@@ -111,6 +117,12 @@ class Server:
             # Registra o tempo real (segundos) gasto no treinamento local do cliente
             # sys_metrics[c.id][LOCAL_TIME_KEY] = (t1 - t0)
             sys_metrics[c.id]["computingTime"] = (t1 - t0)
+
+            # Global-relative end (when this client's local training ends)
+            sys_metrics[c.id]["sim_time_end"] = t1 - self.sim_start_time
+
+
+
 
             # Armazena update para agregação posterior no servidor
             self.updates.append((num_samples, update))
