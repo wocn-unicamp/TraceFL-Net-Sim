@@ -17,9 +17,9 @@ folder_path = "../results/stat/"
 file_bases_1 = [
     # "stat_metrics_fedavg_c_10_e_1",
     # "stat_metrics_fedavg_c_10_e_2",
-    # "stat_metrics_fedavg_c_10_e_3",
-    "stat_metrics_fedavg_c_64_e_1",
-    "stat_metrics_fedavg_c_64_e_2",
+    # "stat_metrics_fedavg_c_28_e_1",
+    "stat_metrics_fedavg_c_64_e_1_y",
+    "stat_metrics_fedavg_c_64_e_2_y",
     "stat_metrics_fedavg_c_64_e_3",
     "stat_metrics_fedavg_c_64_e_4",
     "stat_metrics_fedavg_c_64_e_5",
