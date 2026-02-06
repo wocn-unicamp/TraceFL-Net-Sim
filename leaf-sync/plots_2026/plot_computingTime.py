@@ -57,9 +57,12 @@ def plot_cdf_group_from_column(
 # =========================
 # Uso (3 gráficos)
 # =========================
-FOLDER = "../results/sys/"
-OUT = "figures/computingTime"
-EPOCHS = range(1, 5)
+
+SIM_TYPE = "serial"  # "paralelo" ou "serial"
+
+FOLDER = f"../results/sys/fine_{SIM_TYPE}/"
+OUT = f"figures/computingTime/{SIM_TYPE}"
+EPOCHS = range(1, 6)
 C = 64
 FLOPS_PER_SEC = 64e9  # 64 GFLOP/s
 REAL_FLOPS_PER_SEC = 100e9  # 100 GFLOP/s medido no benchmark (modo single-core)

@@ -4,8 +4,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-FOLDER = "../results/sys/"
-OUT = "figures/trainingTime"
+SIM_TYPE = "serial"  # "paralelo" ou "serial"
+
+FOLDER = f"../results/sys/fine_{SIM_TYPE}/"
+OUT = f"figures/trainingTime/{SIM_TYPE}"
+
 C = 64
 
 # Crear el directorio de salida para los gráficos

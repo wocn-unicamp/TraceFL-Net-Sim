@@ -13,17 +13,14 @@ from matplotlib.ticker import MultipleLocator
 #     "stat_metrics_fedavg_c_64_e_3",
 # ]
 
-folder_path = "../results/stat/"
+folder_path = "../results/stat/fine/"
 file_bases_1 = [
-    # "stat_metrics_fedavg_c_10_e_1",
-    # "stat_metrics_fedavg_c_10_e_2",
-    # "stat_metrics_fedavg_c_28_e_1",
-    "stat_metrics_fedavg_c_64_e_1_y",
-    "stat_metrics_fedavg_c_64_e_2_y",
+    "stat_metrics_fedavg_c_64_e_1",
+    "stat_metrics_fedavg_c_64_e_2",
     "stat_metrics_fedavg_c_64_e_3",
     "stat_metrics_fedavg_c_64_e_4",
     "stat_metrics_fedavg_c_64_e_5",
-    "stat_metrics_fedavg_c_64_e_6",
+    # "stat_metrics_fedavg_c_64_e_6",
 ]
 
 file_groups = [
@@ -45,12 +42,12 @@ ticks_by_group = {
 }
 
 plt.rcParams.update({
-    "font.size": 12,
+    "font.size": 14,
     "axes.titlesize": 14,
-    "axes.labelsize": 13,
-    "legend.fontsize": 12,
-    "xtick.labelsize": 12,
-    "ytick.labelsize": 12,
+    "axes.labelsize": 15,
+    "legend.fontsize": 14,
+    "xtick.labelsize": 14,
+    "ytick.labelsize": 14,
 })
 
 linewidth = 2.2
@@ -198,7 +195,7 @@ for group_name, file_bases in file_groups:
     leg = fig.legend(
         handles, labels,
         loc="upper center",
-        ncol=3,
+        ncol=len(labels),
         frameon=True,
         bbox_to_anchor=(0.5, 1.05),
         title="Local epochs (E)"
