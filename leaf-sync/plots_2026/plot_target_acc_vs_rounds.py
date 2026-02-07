@@ -27,6 +27,15 @@ plt.rcParams.update({
 
 grid_alpha = 0.3
 
+# ===================== (NEW) helper to save CSV =====================
+def save_rounds_to_targets_csv(Es, targets, rounds_matrix, out_dir, filename="rounds_to_reach_targets_c64.csv"):
+    data = {"E": Es.tolist()}
+    for j, t in enumerate(targets):
+        data[f"round_to_{int(t)}"] = rounds_matrix[:, j].tolist()
+    out_path = os.path.join(out_dir, filename)
+    pd.DataFrame(data).to_csv(out_path, index=False)
+    return out_path
+
 # ===================== Compute rounds to target =====================
 Es = []
 rounds_matrix = []  # rows: E, cols: targets
@@ -81,11 +90,16 @@ plt.tight_layout()
 
 out_dir = os.path.join("figures", "acc_target")
 os.makedirs(out_dir, exist_ok=True)
+
 out_path = os.path.join(out_dir, "rounds_to_reach_targets_c64.png")
 plt.savefig(out_path, dpi=150, bbox_inches="tight")
 plt.close()
 
+# ===================== (NEW) save CSV in same folder as image =====================
+csv_path = save_rounds_to_targets_csv(Es, TARGETS, rounds_matrix, out_dir)
+
 print("Saved:", out_path)
+print("Saved CSV:", csv_path)
 print("E values:", Es.tolist())
 print("Rounds to targets (cols = 65,70,74):")
 print(rounds_matrix)
