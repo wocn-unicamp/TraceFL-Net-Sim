@@ -149,11 +149,11 @@ for group_name, file_bases in file_groups:
             print(f"[warn] no test/accuracy data in {file_path}.")
 
     # Titles & labels (include that C is fixed)
-    axs[0].set_title("Training Loss (C = 64)")
+    axs[0].set_title("Training Loss ")
     axs[0].set_xlabel("Rounds")
     axs[0].set_ylabel("Loss")
 
-    axs[1].set_title("Test Accuracy (C = 64)")
+    axs[1].set_title("Test Accuracy ")
     axs[1].set_xlabel("Rounds")
     axs[1].set_ylabel("Accuracy (%)")
 

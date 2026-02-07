@@ -71,29 +71,65 @@ Es = np.array(Es)
 rounds_matrix = np.array(rounds_matrix)  # shape: (len(Es), len(TARGETS))
 
 # ===================== Plot (grouped bars) =====================
+# ===================== Plot (grouped bars) =====================
 x = np.arange(len(Es))
 bar_w = 0.22
 
-plt.figure(figsize=(9, 5))
+fig, ax = plt.subplots(figsize=(9, 5))
 
 offsets = (np.arange(len(TARGETS)) - (len(TARGETS) - 1) / 2.0) * bar_w
-for j, t in enumerate(TARGETS):
-    plt.bar(x + offsets[j], rounds_matrix[:, j], width=bar_w, label=f"{t:.0f}%")
 
-plt.title("Rounds to Reach a Target Accuracy (C = 64)")
-plt.xlabel("Local epochs (E)")
-plt.ylabel("Rounds")
-plt.xticks(x, [str(e) for e in Es])
-plt.grid(True, axis="y", alpha=grid_alpha)
-plt.legend(title="Target accuracy", ncol=len(TARGETS))
-plt.tight_layout()
+bar_containers = []
+for j, t in enumerate(TARGETS):
+    bc = ax.bar(x + offsets[j], rounds_matrix[:, j], width=bar_w, label=f"{t:.0f}%")
+    bar_containers.append(bc)
+
+# (NEW) Dar espacio arriba para que no se corten las etiquetas
+y_data_max = np.nanmax(rounds_matrix) if np.any(np.isfinite(rounds_matrix)) else 0.0
+ax.set_ylim(0, y_data_max * 1.12 + 1.0)
+y_max = ax.get_ylim()[1]
+
+# (NEW) Anotar barras
+def annotate_bars(bar_container, values):
+    for rect, v in zip(bar_container, values):
+        if not np.isfinite(v):
+            continue
+
+        h = rect.get_height()
+
+        # siempre arriba (con margen y sin salirse del eje)
+        y = min(h + max(1.0, 0.01 * y_max), y_max - max(1.0, 0.02 * y_max))
+        va = "bottom"
+
+        # formateo: entero si aplica, si no 1 decimal
+        label = f"{int(v)}" if float(v).is_integer() else f"{v:.1f}"
+
+        ax.text(
+            rect.get_x() + rect.get_width() / 2.0,
+            y,
+            label,
+            ha="center",
+            va=va,
+        )
+
+for j, bc in enumerate(bar_containers):
+    annotate_bars(bc, rounds_matrix[:, j])
+
+ax.set_title("Number of training rounds to reach a target accuracy")
+ax.set_xlabel("Local epochs (E)")
+ax.set_ylabel("Rounds")
+ax.set_xticks(x)
+ax.set_xticklabels([str(e) for e in Es])
+ax.grid(True, axis="y", alpha=grid_alpha)
+ax.legend(title="Target accuracy", ncol=len(TARGETS))
+fig.tight_layout()
 
 out_dir = os.path.join("figures", "acc_target")
 os.makedirs(out_dir, exist_ok=True)
 
 out_path = os.path.join(out_dir, "rounds_to_reach_targets_c64.png")
-plt.savefig(out_path, dpi=150, bbox_inches="tight")
-plt.close()
+fig.savefig(out_path, dpi=150, bbox_inches="tight")
+plt.close(fig)
 
 # ===================== (NEW) save CSV in same folder as image =====================
 csv_path = save_rounds_to_targets_csv(Es, TARGETS, rounds_matrix, out_dir)

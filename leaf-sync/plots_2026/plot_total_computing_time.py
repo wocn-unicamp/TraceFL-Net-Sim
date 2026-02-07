@@ -16,9 +16,9 @@ plt.rcParams.update({
     "ytick.labelsize": 14,
 })
 
-SIM_TYPE = "serial"  # "paralelo" ou "serial"
+SIM_TYPE = "serial_lowcap"  # "paralelo" ou "serial" o "serial_lowcap"
 FOLDER = f"../results/sys/fine_{SIM_TYPE}/"
-OUT = f"figures/trainingTime/{SIM_TYPE}"
+OUT = f"figures/totalComputingTime/{SIM_TYPE}"
 C = 64
 
 # Escala: si tus CSV tienen ~100 rounds y quieres estimar 1000 rounds
@@ -72,9 +72,9 @@ def plot_training_time_bars(epochs, t65_sec, t70_sec, t74_sec, t1000_sec):
     bars74   = plt.bar(x + 0.5 * width, t74_m,   width, label="Accuracy 74%")
     bars1000 = plt.bar(x + 1.5 * width, t1000_m, width, label="1000 Rounds")
 
-    plt.title("Total Training Time by Target Accuracies and 1000 Rounds")
+    plt.title("Total computing time to reach a target accuracy / 1000 Rounds")
     plt.xlabel("Epochs")
-    plt.ylabel("Time [minutes]")
+    plt.ylabel("Time (min)")
     plt.ylim(1, 130)
 
     plt.xticks(x, list(epochs))
@@ -112,7 +112,7 @@ def plot_training_time_bars(epochs, t65_sec, t70_sec, t74_sec, t1000_sec):
     # ------------------------------------------------------
 
     plt.tight_layout()
-    out_path = os.path.join(OUT, "training_time_targets_and_1000rounds.png")
+    out_path = os.path.join(OUT, "total_computing_time_targets_and_1000rounds.png")
     plt.savefig(out_path, dpi=150)
     plt.close()
     print(f"Gráfico guardado en: {out_path}")

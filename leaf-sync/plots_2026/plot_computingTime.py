@@ -58,13 +58,13 @@ def plot_cdf_group_from_column(
 # Uso (3 gráficos)
 # =========================
 
-SIM_TYPE = "serial"  # "paralelo" ou "serial"
+SIM_TYPE = "serial"  # "paralelo" ou "serial" ou "serial_lowcap"
 
 FOLDER = f"../results/sys/fine_{SIM_TYPE}/"
 OUT = f"figures/computingTime/{SIM_TYPE}"
 EPOCHS = range(1, 6)
 C = 64
-FLOPS_PER_SEC = 64e9  # 64 GFLOP/s
+FLOPS_PER_SEC = 100e9  # 100 GFLOP/s
 REAL_FLOPS_PER_SEC = 100e9  # 100 GFLOP/s medido no benchmark (modo single-core)
 
 
@@ -77,8 +77,8 @@ plot_cdf_group_from_column(
     epochs=EPOCHS,
     column="local_computations",
     transform_fn=lambda df: df["local_computations"].dropna().to_numpy() / 1e9,
-    title=f" CDF of computing demand in GFLOPs",
-    xlabel="Computing Demand per round (GFLOPs)",
+    title=f" CDF of Computing Demand per Round",
+    xlabel="Computing demand per round (GFLOPs)",
     out_filename=f"computational_demand_gflop_c_{C}.png"
 )
 
@@ -90,8 +90,8 @@ plot_cdf_group_from_column(
     epochs=EPOCHS,
     column="local_computations",
     transform_fn=lambda df: df["local_computations"].dropna().to_numpy() / FLOPS_PER_SEC,
-    title=f"CDF of estimated computing time (With 64 GFLOPs/sec)",
-    xlabel="Estimated Computing Time (s)",
+    title=f"CDF of estimated computing time per Round (With 100 GFLOPs/sec)",
+    xlabel="Estimated computing time per round (s)",
     out_filename=f"estimated_computing_time_c_{C}.png"
 )
 
@@ -103,8 +103,8 @@ plot_cdf_group_from_column(
     epochs=EPOCHS,
     column="computingTime",
     transform_fn=lambda df: df["computingTime"].dropna().to_numpy(),
-    title=f"CDF of real computing time (seconds)",
-    xlabel="Real Computing Time (s)",
+    title=f"CDF of Computing Time per Round",
+    xlabel="Computing time per round (s)",
     out_filename=f"real_computing_time_c_{C}.png"
 )
 
@@ -116,7 +116,7 @@ plot_cdf_group_from_column(
     epochs=EPOCHS,
     column="computingTime",
     transform_fn=lambda df: df["computingTime"].dropna().to_numpy() * REAL_FLOPS_PER_SEC,
-    title=f"CDF of estimated computing demand (GFLOPs)",
-    xlabel="Estimated Computing Demand per round in GFLOP (With 100 GFLOPs/sec)",
+    title=f"CDF of estimated computing demand (With 100 GFLOPs/sec)",
+    xlabel="Estimated computing demand per round (GFLOPs)",
     out_filename=f"estimated_computational_demand_gflop_c_{C}.png"
 )
