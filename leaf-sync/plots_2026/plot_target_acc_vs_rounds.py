@@ -75,7 +75,7 @@ rounds_matrix = np.array(rounds_matrix)  # shape: (len(Es), len(TARGETS))
 x = np.arange(len(Es))
 bar_w = 0.22
 
-fig, ax = plt.subplots(figsize=(9, 5))
+fig, ax = plt.subplots(figsize=(7.5, 5))
 
 offsets = (np.arange(len(TARGETS)) - (len(TARGETS) - 1) / 2.0) * bar_w
 

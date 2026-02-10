@@ -3,6 +3,22 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+
+# =========================
+# Estilo global
+# =========================
+plt.rcParams.update({
+    "font.size": 14,
+    "axes.titlesize": 14,
+    "axes.labelsize": 15,
+    "legend.fontsize": 14,
+    "xtick.labelsize": 14,
+    "ytick.labelsize": 14,
+})
+
+linewidth = 1.3      # linhas mais finas (não “pesadas”)
+grid_alpha = 0.3
+
 # =========================
 # Funções simples (reuso)
 # =========================
@@ -23,7 +39,7 @@ def plot_cdf_group_from_column(
     - Comentários PT-BR, estilo direto.
     """
     os.makedirs(out_dir, exist_ok=True)
-    plt.figure(figsize=(7, 5))
+    plt.figure(figsize=(7.5, 5))
     
     # Name of the plot
     print(f"\nUsing '{column}' to plot CDF...")  
@@ -58,7 +74,7 @@ def plot_cdf_group_from_column(
 # Uso (3 gráficos)
 # =========================
 
-SIM_TYPE = "serial"  # "paralelo" ou "serial" ou "serial_lowcap"
+SIM_TYPE = "paralelo"  # "paralelo" ou "serial" ou "serial_lowcap"
 
 FOLDER = f"../results/sys/fine_{SIM_TYPE}/"
 OUT = f"figures/computingTime/{SIM_TYPE}"
