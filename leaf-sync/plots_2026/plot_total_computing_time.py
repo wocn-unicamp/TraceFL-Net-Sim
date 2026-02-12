@@ -16,15 +16,15 @@ plt.rcParams.update({
     "ytick.labelsize": 14,
 })
 
-SIM_TYPE = "serial_lowcap"  # "paralelo" ou "serial" o "serial_lowcap"
+SIM_TYPE = "serial"  # "paralelo" | "serial" | "serial_lowcap"
 FOLDER = f"../results/sys/fine_{SIM_TYPE}/"
 OUT = f"figures/totalComputingTime/{SIM_TYPE}"
 C = 64
 
-# Escala: si tus CSV tienen ~100 rounds y quieres estimar 1000 rounds
+# Escala: se o CSV tem ~100 rounds e você quer estimar 1000 rounds
 SCALE_TO_1000 = 10
 
-# Rounds (en escala 1000) para alcanzar accuracy X (se dividirán entre 10)
+# Rounds (na escala 1000) para atingir accuracy X (vamos dividir por 10 para mapear nos ~100 rounds do CSV)
 acc_rounds_1000 = {
     1: {"round_to_65": 320.0, "round_to_70": 440.0, "round_to_74": 680.0},
     2: {"round_to_65": 180.0, "round_to_70": 240.0, "round_to_74": 400.0},
@@ -36,7 +36,7 @@ acc_rounds_1000 = {
 os.makedirs(OUT, exist_ok=True)
 
 # ============================================================
-# Helper: end time (max time) en el round más cercano <= target
+# Helper: retorna o "end time" (max time) no round mais próximo <= target
 # ============================================================
 def end_time_at_or_before_round(df_epoch, target_round: int) -> float:
     rounds = np.sort(df_epoch["round_number"].unique())
@@ -44,16 +44,13 @@ def end_time_at_or_before_round(df_epoch, target_round: int) -> float:
         return np.nan
 
     candidates = rounds[rounds <= target_round]
-    if len(candidates) == 0:
-        chosen = int(rounds[0])
-    else:
-        chosen = int(candidates[-1])
+    chosen = int(candidates[-1]) if len(candidates) > 0 else int(rounds[0])
 
     return float(df_epoch.loc[df_epoch["round_number"] == chosen, "time"].max())
 
 
 # ============================================================
-# Plot 1: 4 barras por época (65/70/74 + 1000 rounds) en horas
+# Plot 1: 4 barras por época (65/70/74 + 1000 rounds) em minutos
 # ============================================================
 def plot_training_time_bars(epochs, t65_sec, t70_sec, t74_sec, t1000_sec):
     plt.figure(figsize=(11, 6))
@@ -61,7 +58,7 @@ def plot_training_time_bars(epochs, t65_sec, t70_sec, t74_sec, t1000_sec):
     x = np.arange(len(list(epochs)))
     width = 0.20
 
-    # segundos -> minutos (estimación a 1000 rounds)
+    # segundos -> minutos (estimado para 1000 rounds)
     t65_m   = (np.array(t65_sec, dtype=float)   * SCALE_TO_1000) / 60.0
     t70_m   = (np.array(t70_sec, dtype=float)   * SCALE_TO_1000) / 60.0
     t74_m   = (np.array(t74_sec, dtype=float)   * SCALE_TO_1000) / 60.0
@@ -81,7 +78,7 @@ def plot_training_time_bars(epochs, t65_sec, t70_sec, t74_sec, t1000_sec):
     plt.grid(True, axis="y", linestyle="--", alpha=0.6)
     plt.legend()
 
-    # ---------- Etiquetas en cada barra (minutos) ----------
+    # ---- anotar valores nas barras (minutos), sempre acima ----
     ax = plt.gca()
     y_max = ax.get_ylim()[1]
 
@@ -89,43 +86,35 @@ def plot_training_time_bars(epochs, t65_sec, t70_sec, t74_sec, t1000_sec):
         for rect, v in zip(bar_container, values):
             if not np.isfinite(v):
                 continue
-
             h = rect.get_height()
-
-            # siempre arriba
             y = min(h + 1.0, y_max - 1.0)
-            va = "bottom"
-
             ax.text(
                 rect.get_x() + rect.get_width() / 2.0,
                 y,
                 f"{v:.1f}",
                 ha="center",
-                va=va,
+                va="bottom",
             )
-
 
     annotate_bars(bars65, t65_m)
     annotate_bars(bars70, t70_m)
     annotate_bars(bars74, t74_m)
     annotate_bars(bars1000, t1000_m)
-    # ------------------------------------------------------
 
     plt.tight_layout()
     out_path = os.path.join(OUT, "total_computing_time_targets_and_1000rounds.png")
     plt.savefig(out_path, dpi=150)
     plt.close()
-    print(f"Gráfico guardado en: {out_path}")
+    print(f"Gráfico guardado em: {out_path}")
+
 
 # ============================================================
-# Plot 2: Duración promedio del round (sec) con CI 99.99%
+# Plot 2: duração média do round (s) com IC 99.99%
 # ============================================================
 def plot_max_time_per_round(epochs, round_durations_per_epoch, confidence_intervals):
     plt.figure(figsize=(10, 6))
 
-    means = []
-    for times in round_durations_per_epoch:
-        means.append(np.nan if len(times) == 0 else float(np.mean(times)))
+    means = [np.nan if len(v) == 0 else float(np.mean(v)) for v in round_durations_per_epoch]
 
     lower_bound, upper_bound = [], []
     for mean, ci in zip(means, confidence_intervals):
@@ -152,7 +141,6 @@ def plot_max_time_per_round(epochs, round_durations_per_epoch, confidence_interv
     plt.title("Round duration with CI of 99.99%")
     plt.xlabel("Epochs")
     plt.ylabel("Time [sec]")
-
     plt.grid(True, axis="y", linestyle="--", alpha=0.6)
     plt.legend()
 
@@ -160,7 +148,7 @@ def plot_max_time_per_round(epochs, round_durations_per_epoch, confidence_interv
     out_path = os.path.join(OUT, "max_time_per_round_with_confidence_interval.png")
     plt.savefig(out_path, dpi=150)
     plt.close()
-    print(f"Gráfico guardado en: {out_path}")
+    print(f"Gráfico guardado em: {out_path}")
 
 
 # ============================================================
@@ -170,7 +158,6 @@ epochs = range(1, 6)
 
 t_total_100rounds_sec = []
 t65_sec, t70_sec, t74_sec = [], [], []
-
 round_durations_per_epoch = []
 confidence_intervals = []
 
@@ -178,12 +165,17 @@ for EPOCH in epochs:
     path = os.path.join(FOLDER, f"sys_metrics_fedavg_c_{C}_e_{EPOCH}.csv")
     df_epoch = pd.read_csv(path)
 
-    df_epoch["computingTime"] = pd.to_numeric(df_epoch["computingTime"], errors="coerce")
-    df_epoch["round_number"]  = pd.to_numeric(df_epoch["round_number"], errors="coerce")
+    # ---- normalizar tipos ----
+    df_epoch["computingTime"] = pd.to_numeric(df_epoch.get("computingTime"), errors="coerce")
+    df_epoch["round_number"]  = pd.to_numeric(df_epoch.get("round_number"), errors="coerce")
 
+    # ---- limpar linhas inválidas ----
     df_epoch = df_epoch.dropna(subset=["computingTime", "round_number"]).copy()
     df_epoch["round_number"] = df_epoch["round_number"].astype(int)
     df_epoch = df_epoch[df_epoch["computingTime"] > 0].copy()
+
+    # ---- detectar coluna do cliente (pra não quebrar se mudar o nome) ----
+    client_col = next((c for c in ["client", "client_id", "clientId", "user", "user_id"] if c in df_epoch.columns), None)
 
     if df_epoch.empty:
         t_total_100rounds_sec.append(np.nan)
@@ -191,30 +183,29 @@ for EPOCH in epochs:
         round_durations_per_epoch.append([])
         confidence_intervals.append((0.0, 0.0))
 
-        output_path = os.path.join(FOLDER, f"sys_metrics_fedavg_c_{C}_e_{EPOCH}_with_time.csv")
-        df_epoch.to_csv(output_path, index=False)
-        print(f"[WARN] Época {EPOCH}: DataFrame vacío tras limpieza. Guardado: {output_path}")
+        # salvar CSV _time.csv com 4 colunas (vazio, mas com header correto)
+        output_path = os.path.join(FOLDER, f"sys_metrics_fedavg_c_{C}_e_{EPOCH}_time.csv")
+        pd.DataFrame(columns=["client", "round_number", "computingtime", "time"]).to_csv(output_path, index=False)
+        print(f"[WARN] Época {EPOCH}: DataFrame vazio. Arquivo salvo em: {output_path}")
         continue
 
-    # (1) duration(round) = max(computingTime | round)
+    # (1) duração do round = max(computingTime) por round
     durations = df_epoch.groupby("round_number")["computingTime"].max().sort_index()
     dur_list = durations.to_numpy(dtype=float).tolist()
     round_durations_per_epoch.append(dur_list)
 
-    # (2) time acumulado: time = computingTime + end_time(round-1)
+    # (2) tempo acumulado (por round) e "time" por linha
     end_times = durations.cumsum()
-
-    offsets = end_times.to_numpy(dtype=float).copy()
-    offsets = np.roll(offsets, 1)
+    offsets = np.roll(end_times.to_numpy(dtype=float), 1)
     offsets[0] = 0.0
-
     offset_by_round = dict(zip(durations.index.to_numpy(), offsets))
+
     df_epoch["time"] = df_epoch["computingTime"] + df_epoch["round_number"].map(offset_by_round)
 
     total_100_sec = float(end_times.iloc[-1])
     t_total_100rounds_sec.append(total_100_sec)
 
-    # (3) tiempos para accuracy targets
+    # (3) tempo para targets de accuracy (mapeando para ~100 rounds)
     r65_100 = int(round(acc_rounds_1000[EPOCH]["round_to_65"] / SCALE_TO_1000))
     r70_100 = int(round(acc_rounds_1000[EPOCH]["round_to_70"] / SCALE_TO_1000))
     r74_100 = int(round(acc_rounds_1000[EPOCH]["round_to_74"] / SCALE_TO_1000))
@@ -223,7 +214,7 @@ for EPOCH in epochs:
     t70_sec.append(end_time_at_or_before_round(df_epoch, r70_100))
     t74_sec.append(end_time_at_or_before_round(df_epoch, r74_100))
 
-    # (4) CI 99.99% para duración de round
+    # (4) IC 99.99% para duração do round
     if len(dur_list) >= 2:
         mean = float(np.mean(dur_list))
         ci = stats.t.interval(0.9999, len(dur_list) - 1, loc=mean, scale=stats.sem(dur_list))
@@ -231,10 +222,22 @@ for EPOCH in epochs:
     else:
         confidence_intervals.append((0.0, 0.0))
 
-    # Guardar CSV con time
-    output_path = os.path.join(FOLDER, f"sys_metrics_fedavg_c_{C}_e_{EPOCH}_with_time.csv")
-    df_epoch.to_csv(output_path, index=False)
-    print(f"Archivo guardado para época {EPOCH} en: {output_path}")
+    # (5) salvar CSV _time.csv com APENAS 4 colunas: client, round_number, computingtime, time
+    output_path = os.path.join(FOLDER, f"sys_metrics_fedavg_c_{C}_e_{EPOCH}_time.csv")
+
+    if client_col is None:
+        df_out = df_epoch[["round_number", "computingTime", "time"]].copy()
+        df_out.insert(0, "client", np.nan)
+    else:
+        df_out = df_epoch[[client_col, "round_number", "computingTime", "time"]].copy()
+        if client_col != "client":
+            df_out = df_out.rename(columns={client_col: "client"})
+
+    df_out = df_out.rename(columns={"computingTime": "computingtime"})
+    df_out.to_csv(output_path, index=False)
+
+    print(f"Arquivo _time.csv salvo para época {EPOCH} em: {output_path}")
+
 
 plot_training_time_bars(epochs, t65_sec, t70_sec, t74_sec, t_total_100rounds_sec)
 plot_max_time_per_round(epochs, round_durations_per_epoch, confidence_intervals)
