@@ -174,7 +174,7 @@ for EPOCH in epochs:
     df_epoch["round_number"] = df_epoch["round_number"].astype(int)
     df_epoch = df_epoch[df_epoch["computingTime"] > 0].copy()
 
-    # ---- detectar coluna do cliente (pra não quebrar se mudar o nome) ----
+    # ---- detectar coluna do cliente (apenas para ordenar determinísticamente, não vamos salvar o ID) ----
     client_col = next((c for c in ["client", "client_id", "clientId", "user", "user_id"] if c in df_epoch.columns), None)
 
     if df_epoch.empty:
@@ -183,9 +183,11 @@ for EPOCH in epochs:
         round_durations_per_epoch.append([])
         confidence_intervals.append((0.0, 0.0))
 
-        # salvar CSV _time.csv com 4 colunas (vazio, mas com header correto)
+        # salvar CSV _time.csv (SEM header)
         output_path = os.path.join(FOLDER, f"sys_metrics_fedavg_c_{C}_e_{EPOCH}_time.csv")
-        pd.DataFrame(columns=["client", "round_number", "computingtime", "time"]).to_csv(output_path, index=False)
+        pd.DataFrame(columns=["client", "round_number", "computingtime", "time"]).to_csv(
+            output_path, index=False, header=False
+        )
         print(f"[WARN] Época {EPOCH}: DataFrame vazio. Arquivo salvo em: {output_path}")
         continue
 
@@ -222,19 +224,33 @@ for EPOCH in epochs:
     else:
         confidence_intervals.append((0.0, 0.0))
 
-    # (5) salvar CSV _time.csv com APENAS 4 colunas: client, round_number, computingtime, time
+    # ============================================================
+    # (5) salvar CSV _time.csv:
+    #     - 1ª coluna = client sequencial 1..(num clientes do round) (idealmente 1..C)
+    #     - SEM header (remove a primeira linha com nomes das colunas)
+    # ============================================================
     output_path = os.path.join(FOLDER, f"sys_metrics_fedavg_c_{C}_e_{EPOCH}_time.csv")
 
-    if client_col is None:
-        df_out = df_epoch[["round_number", "computingTime", "time"]].copy()
-        df_out.insert(0, "client", np.nan)
+    # ordenar para ficar determinístico (opcional, mas recomendado)
+    if client_col is not None:
+        df_epoch = df_epoch.sort_values(["round_number", client_col]).copy()
     else:
-        df_out = df_epoch[[client_col, "round_number", "computingTime", "time"]].copy()
-        if client_col != "client":
-            df_out = df_out.rename(columns={client_col: "client"})
+        df_epoch = df_epoch.sort_values(["round_number"]).copy()
 
+    # client = 1..n por round
+    df_epoch["client"] = df_epoch.groupby("round_number").cumcount() + 1
+
+    # (opcional) warning se algum round não tiver C clientes
+    sizes = df_epoch.groupby("round_number").size()
+    if not (sizes == C).all():
+        bad = sizes[sizes != C]
+        print(f"[WARN] Época {EPOCH}: rounds com #clientes != {C}: {bad.to_dict()}")
+
+    df_out = df_epoch[["client", "round_number", "computingTime", "time"]].copy()
     df_out = df_out.rename(columns={"computingTime": "computingtime"})
-    df_out.to_csv(output_path, index=False)
+
+    # SEM header
+    df_out.to_csv(output_path, index=False, header=False)
 
     print(f"Arquivo _time.csv salvo para época {EPOCH} em: {output_path}")
 
