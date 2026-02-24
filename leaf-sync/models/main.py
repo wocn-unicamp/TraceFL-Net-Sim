@@ -93,11 +93,17 @@ def main():
 
         # Simulate server model training on selected clients' data
         sys_metrics = server.train_model(num_epochs=args.num_epochs, batch_size=args.batch_size, minibatch=args.minibatch)
+      
+        # Update server model
+        agg_time_s = server.update_model()
+        print(f"[AGG] Round {i+1}: aggregation time = {agg_time_s:.6f} s")
+        # (Opcional) repete o valor em todos os clientes desta rodada para logar no .sys
+        for cid in c_ids:
+            sys_metrics[cid]["agg_time_s"] = agg_time_s
+        
+        # Log system metrics
         sys_writer_fn(i + 1, c_ids, sys_metrics, c_groups, c_num_samples)
         
-        # Update server model
-        server.update_model()
-
         # Test model
         if (i + 1) % eval_every == 0 or (i + 1) == num_rounds:
             print_stats(i + 1, server, clients, client_num_samples, args, stat_writer_fn, args.use_val_set)

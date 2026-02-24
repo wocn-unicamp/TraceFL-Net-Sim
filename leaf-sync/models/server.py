@@ -132,6 +132,19 @@ class Server:
 
 
     def update_model(self):
+        # total_weight = 0.
+        # base = [0] * len(self.updates[0][1])
+        # for (client_samples, client_model) in self.updates:
+        #     total_weight += client_samples
+        #     for i, v in enumerate(client_model):
+        #         base[i] += (client_samples * v.astype(np.float64))
+        # averaged_soln = [v / total_weight for v in base]
+
+        # self.model = averaged_soln
+        # self.updates = []
+       
+        t0 = time.perf_counter()
+
         total_weight = 0.
         base = [0] * len(self.updates[0][1])
         for (client_samples, client_model) in self.updates:
@@ -142,6 +155,10 @@ class Server:
 
         self.model = averaged_soln
         self.updates = []
+
+        t1 = time.perf_counter()
+        return (t1 - t0)
+
 
     def test_model(self, clients_to_test, set_to_use='test'):
         """Tests self.model on given clients.
