@@ -74,7 +74,7 @@ def plot_cdf_group_from_column(
 # Uso (3 gráficos)
 # =========================
 
-SIM_TYPE = "paralelo"  # "paralelo" ou "serial" ou "serial_lowcap"
+SIM_TYPE = "serial"  # "paralelo" ou "serial" ou "serial_lowcap"
 
 FOLDER = f"../results/sys/fine_{SIM_TYPE}/"
 OUT = f"figures/computingTime/{SIM_TYPE}"

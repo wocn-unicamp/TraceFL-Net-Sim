@@ -16,7 +16,7 @@ plt.rcParams.update({
     "ytick.labelsize": 14,
 })
 
-SIM_TYPE = "serial"  # "paralelo" | "serial" | "serial_lowcap"
+SIM_TYPE = "serial_lowcap"  # "paralelo" | "serial" | "serial_lowcap"
 FOLDER = f"../results/sys/fine_{SIM_TYPE}/"
 OUT = f"figures/totalComputingTime/{SIM_TYPE}"
 C = 64
