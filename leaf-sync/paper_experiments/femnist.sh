@@ -13,7 +13,7 @@ num_rounds="100"
 
 fedavg_lr="0.004"
 # declare -a fedavg_vals=( "64 1" "64 2" "64 3" "64 4" "64 5" ) # (num_clients num_epochs)
-declare -a fedavg_vals=( "64 1" "64 2" ) # (num_clients num_epochs)
+declare -a fedavg_vals=( "60 1" ) # (num_clients num_epochs)
 
 
 # minibatch_lr="0.06"
