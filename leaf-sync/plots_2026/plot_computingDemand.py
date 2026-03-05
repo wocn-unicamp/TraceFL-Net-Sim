@@ -21,7 +21,7 @@ grid_alpha = 0.3
 # =========================
 # Config
 # =========================
-SIM_TYPE = "serial"  # "paralelo" ou "serial" ou "serial_lowcap"
+SIM_TYPE = "serial_lowcap"  # "paralelo" ou "serial" ou "serial_lowcap"
 FOLDER = f"../results/sys/fine_{SIM_TYPE}/"
 OUT_DIR = f"figures/computingDemand/{SIM_TYPE}"
 
@@ -43,11 +43,11 @@ labels = []
 
 for e in EPOCHS:
     # Lê o CSV do epoch E
-    path = os.path.join(FOLDER, f"sys_metrics_fedavg_c_{C}_e_{e}.csv")
+    path = os.path.join(FOLDER, f"sys_metrics_fedavg_c_{C}_e_{e}_time.csv")
     df = pd.read_csv(path)
 
     # FLOPs -> GFLOPs
-    gflops = df["local_computations"].dropna().to_numpy() / 1e9
+    gflops = df["computingDemand"].dropna().to_numpy() / 1e9
 
     data.append(gflops)
     labels.append(f"{e}")

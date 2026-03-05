@@ -45,7 +45,7 @@ def plot_cdf_group_from_column(
     print(f"\nUsing '{column}' to plot CDF...")  
 
     for e in epochs:
-        path = os.path.join(folder, f"sys_metrics_fedavg_c_{c}_e_{e}.csv")
+        path = os.path.join(folder, f"sys_metrics_fedavg_c_{c}_e_{e}_time.csv")
         df = pd.read_csv(path)
 
         # Extrai e transforma os dados (ex: GFLOP, tempo estimado, etc.)
@@ -81,7 +81,7 @@ OUT = f"figures/computingTime/{SIM_TYPE}"
 EPOCHS = range(1, 6)
 C = 64
 FLOPS_PER_SEC = 100e9  # 100 GFLOP/s
-REAL_FLOPS_PER_SEC = 100e9  # 100 GFLOP/s medido no benchmark (modo single-core)
+REAL_FLOPS_PER_SEC = 114e9  # 100 GFLOP/s medido no benchmark (modo single-core)
 
 
 
@@ -91,48 +91,61 @@ plot_cdf_group_from_column(
     out_dir=OUT,
     c=C,
     epochs=EPOCHS,
-    column="local_computations",
-    transform_fn=lambda df: df["local_computations"].dropna().to_numpy() / 1e9,
+    column="computingDemand",
+    transform_fn=lambda df: df["computingDemand"].dropna().to_numpy() / 1e9,
     title=f" CDF of Computing Demand per Round",
     xlabel="Computing demand per round (GFLOPs)",
     out_filename=f"computational_demand_gflop_c_{C}.png"
 )
 
-# 2) CDF: tempo estimado = FLOPs / 64 GFLOP/s
-plot_cdf_group_from_column(
-    folder=FOLDER,
-    out_dir=OUT,
-    c=C,
-    epochs=EPOCHS,
-    column="local_computations",
-    transform_fn=lambda df: df["local_computations"].dropna().to_numpy() / FLOPS_PER_SEC,
-    title=f"CDF of estimated computing time per Round (With 100 GFLOPs/sec)",
-    xlabel="Estimated computing time per round (s)",
-    out_filename=f"estimated_computing_time_c_{C}.png"
-)
+# # 2) CDF: tempo estimado = FLOPs / 64 GFLOP/s
+# plot_cdf_group_from_column(
+#     folder=FOLDER,
+#     out_dir=OUT,
+#     c=C,
+#     epochs=EPOCHS,
+#     column="computingDemand",
+#     transform_fn=lambda df: df["computingDemand"].dropna().to_numpy() / FLOPS_PER_SEC,
+#     title=f"CDF of estimated computing time per Round (With 100 GFLOPs/sec)",
+#     xlabel="Estimated computing time per round (s)",
+#     out_filename=f"estimated_computing_time_c_{C}.png"
+# )
 
-# 3) CDF: computingTime real (coluna do CSV)
+# 3) CDF: computingTime cenario homogeneo
 plot_cdf_group_from_column(
     folder=FOLDER,
     out_dir=OUT,
     c=C,
     epochs=EPOCHS,
-    column="computingTime",
-    transform_fn=lambda df: df["computingTime"].dropna().to_numpy(),
-    title=f"CDF of Computing Time per Round",
+    column="computingTime_hom",
+    transform_fn=lambda df: df["computingTime_hom"].dropna().to_numpy(),
+    title=f"CDF of Computing Time per Round (Homogeneous Scenario)",
     xlabel="Computing time per round (s)",
-    out_filename=f"real_computing_time_c_{C}.png"
+    out_filename=f"real_computing_time_hom_c_{C}.png"
 )
 
-# 4) CDF: Estimated local computations (GFLOP)
+# 4) CDF: computingTime cenario heterogeneo
 plot_cdf_group_from_column(
     folder=FOLDER,
     out_dir=OUT,
     c=C,
     epochs=EPOCHS,
-    column="computingTime",
-    transform_fn=lambda df: df["computingTime"].dropna().to_numpy() * REAL_FLOPS_PER_SEC,
-    title=f"CDF of estimated computing demand (With 100 GFLOPs/sec)",
-    xlabel="Estimated computing demand per round (GFLOPs)",
-    out_filename=f"estimated_computational_demand_gflop_c_{C}.png"
+    column="computingTime_het",
+    transform_fn=lambda df: df["computingTime_het"].dropna().to_numpy(),
+    title=f"CDF of Computing Time per Round (Heterogeneous Scenario)",
+    xlabel="Computing time per round (s)",
+    out_filename=f"real_computing_time_het_c_{C}.png"
 )
+
+# # 5) CDF: Estimated local computations (GFLOP)
+# plot_cdf_group_from_column(
+#     folder=FOLDER,
+#     out_dir=OUT,
+#     c=C,
+#     epochs=EPOCHS,
+#     column="computingTime_ho",
+#     transform_fn=lambda df: df["computingTime"].dropna().to_numpy() * REAL_FLOPS_PER_SEC,
+#     title=f"CDF of estimated computing demand (With 100 GFLOPs/sec)",
+#     xlabel="Estimated computing demand per round (GFLOPs)",
+#     out_filename=f"estimated_computational_demand_gflop_c_{C}.png"
+# )

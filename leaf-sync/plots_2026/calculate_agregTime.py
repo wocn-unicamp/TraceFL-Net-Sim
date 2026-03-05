@@ -106,7 +106,7 @@ def summarize_folder(input_dir: str) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    INPUT_DIR = "/home/oscar/workspace/TraceFL-Net-Sim/leaf-sync/results/sys/fine_paralelo"
+    INPUT_DIR = "/home/oscar/Workspace/TraceFL-Net-Sim/leaf-sync/results/sys/fine_serial/"
     paths = sorted(glob.glob(os.path.join(INPUT_DIR, PATTERN)))
 
     # 1) Imprime a lista de gaps filtrados para cada arquivo
