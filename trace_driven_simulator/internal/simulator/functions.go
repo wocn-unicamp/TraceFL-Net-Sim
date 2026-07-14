@@ -29,6 +29,10 @@ func (td *TraceDriven) RunSimulation(trace_filename string) {
 }
 
 func (td *TraceDriven) calculeMetrics(results *queues.Output) float64 {
+	// Prevent division by zero (NaN) if a client had no packets in this round
+	if results.NumPackets == 0 {
+		return 0.0
+	}
 	meanDelay := results.Delay / float64(results.NumPackets)
 	return meanDelay
 }
@@ -67,7 +71,6 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 	var tmutex sync.Mutex = sync.Mutex{}
 
 	// Calculate the mean arrival interval dynamically based on bandwidth load
-	// Average packet size estimation based on the simulator's uniform random generator bounds
 	minFrameSize := float64(ETHERNET_MIN_FRAME)
 	maxFrameSize := minFrameSize - float64(ETHERNET_HEADER) + float64(ETHERNET_MTU)
 	averagePacketSizeBits := ((minFrameSize + maxFrameSize) / 2.0) * 8.0
@@ -128,12 +131,19 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 		}
 	}
 
-	bgIsBursting := false
-	bgMeanOn := ON_MEAN_BG
-	bgMeanOff := OFF_MEAN_BG
+	// Setup independent Pareto On/Off state machines for every background client
+	bgIsBursting := make([]bool, nclient)
 	bgNextTransitionTime := make([]float64, nclient)
+
+	// Pre-calculate Pareto Scale Parameters (Xm) to match the target Mean times
+	alpha := ALPHA_BG
+	xmOn := ON_MEAN_BG * ((alpha - 1.0) / alpha)
+	xmOff := OFF_MEAN_BG * ((alpha - 1.0) / alpha)
+
+	// Initialize all clients to start in a Pareto OFF state
 	for i := range nclient {
-		bgNextTransitionTime[i] = -math.Log(1-rng.Float64()) * bgMeanOff
+		u := rng.Float64()
+		bgNextTransitionTime[i] = xmOff / math.Pow(1.0-u, 1.0/alpha)
 	}
 
 	for round := 1; round <= rounds; round++ {
@@ -240,32 +250,34 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 
 				switch td.options.BackgroundTrafficModel {
 				case PARETO:
-					alpha := ALPHA_BG
-					xm := meanArrivalInterval * ((alpha - 1.0) / alpha)
+					// Standard independent heavy-tail arrivals
 					u := rng.Float64()
+					xm := meanArrivalInterval * ((alpha - 1.0) / alpha)
 					arrivalInterval = xm / math.Pow(1.0-u, 1.0/alpha)
 
 				case ONOFF:
-					// Advance OnOff state machine if local time crossed the transition threshold
+					// Classic Pareto On/Off process for self-similar traffic
 					for localtime >= bgNextTransitionTime[i] {
-						bgIsBursting = !bgIsBursting
-						if bgIsBursting {
-							bgNextTransitionTime[i] += -math.Log(1-rng.Float64()) * bgMeanOn
+						bgIsBursting[i] = !bgIsBursting[i]
+						u := rng.Float64()
+						if bgIsBursting[i] {
+							bgNextTransitionTime[i] += xmOn / math.Pow(1.0-u, 1.0/alpha)
 						} else {
-							bgNextTransitionTime[i] += -math.Log(1-rng.Float64()) * bgMeanOff
+							bgNextTransitionTime[i] += xmOff / math.Pow(1.0-u, 1.0/alpha)
 						}
 					}
 
-					// If OFF, fast-forward local time to the next burst
-					if !bgIsBursting {
+					// Fast-forward local time over the idle OFF gap
+					if !bgIsBursting[i] {
 						localtime = bgNextTransitionTime[i]
-						bgIsBursting = true
-						bgNextTransitionTime[i] += -math.Log(1-rng.Float64()) * bgMeanOn
+						bgIsBursting[i] = true
+						u := rng.Float64()
+						bgNextTransitionTime[i] += xmOn / math.Pow(1.0-u, 1.0/alpha)
 					}
 
-					// During ON phase, traffic arrives much faster to maintain the overall mean
-					burstFactor := (bgMeanOn + bgMeanOff) / bgMeanOn
+					burstFactor := (ON_MEAN_BG + OFF_MEAN_BG) / ON_MEAN_BG
 					burstArrivalInterval := meanArrivalInterval / burstFactor
+					// During the ON burst, packets arrive at Poisson intervals matching the burst rate
 					arrivalInterval = -math.Log(1-rng.Float64()) * burstArrivalInterval
 
 				case POISSON:
@@ -360,7 +372,7 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 			EvalTime:           EVAL_TIME,
 			MinPacketSize:      ETHERNET_MIN_FRAME,
 			MaxPacketSize:      ETHERNET_MTU,
-			PropagationSpeed:   PROP_SPEED,
+			PropagationSpeed:   1.0,
 			ChannelLength:      float32(serverDelay),
 		},
 			&serverWorkload,
