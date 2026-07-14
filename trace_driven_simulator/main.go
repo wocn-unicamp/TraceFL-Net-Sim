@@ -28,7 +28,7 @@ func main() {
 
 	traceDrivenSimulator := simulator.New(&simulator.GlobalOptions{
 		ClientsBandwidth:          uint32(*clientsBandwidthBps),
-		Seed:                        *seed,
+		Seed:                      *seed,
 		ServerBandwidth:           uint32(*serverBandwidthBps),
 		MaxNumberOfRounds:         *earlyStopping,
 		BackgroundTrafficLoad: 	   *backgroundTrafficLoad,

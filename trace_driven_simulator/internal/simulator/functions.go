@@ -332,8 +332,10 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 				fmt.Print(resultString)
 
 				tmutex.Lock()
-				for qout.Workload.Len() > 0 {
-					heap.Push(&serverWorkload, heap.Pop(qout.Workload))
+				if qout.Workload != nil {
+					for qout.Workload.Len() > 0 {
+						heap.Push(&serverWorkload, heap.Pop(qout.Workload))
+					}
 				}
 				tmutex.Unlock()
 
@@ -345,6 +347,10 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 
 		queueWorkloadMetric := uint32(math.Round(td.options.BackgroundTrafficLoad * 100))
 
+		basePropDelay := float64(CHANN_LEN) / float64(PROP_SPEED)
+		internetJitter := -math.Log(1-rng.Float64()) * INTERNET_JITTER_MEAN
+		serverDelay := basePropDelay + internetJitter
+
 		serverQueue := queues.New(&queues.GlobalOptions{
 			MaxQueue:           uint16(math.Floor((float64(serverWorkload.Len()) * 0.10))),
 			NetType:            queues.SERVER,
@@ -355,7 +361,7 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 			MinPacketSize:      ETHERNET_MIN_FRAME,
 			MaxPacketSize:      ETHERNET_MTU,
 			PropagationSpeed:   PROP_SPEED,
-			ChannelLength:      CHANN_LEN,
+			ChannelLength:      float32(serverDelay),
 		},
 			&serverWorkload,
 			td.resultsWritter,
