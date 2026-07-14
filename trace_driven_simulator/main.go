@@ -4,7 +4,7 @@ import (
 	"flag"
 	"log"
 
-	"github.com/Marco-Guerra/Federated-Learning-Network-Workload/trace_driven_simulator/internal/simulator"
+	"github.com/wocn-unicamp/TraceFL-Net-Sim/trace_driven_simulator/internal/simulator"
 )
 
 func main() {

@@ -1,7 +1,7 @@
 package simulator
 
 import (
-	"github.com/Marco-Guerra/Federated-Learning-Network-Workload/trace_driven_simulator/packages/writer"
+	"github.com/wocn-unicamp/TraceFL-Net-Sim/trace_driven_simulator/packages/writer"
 )
 
 const (

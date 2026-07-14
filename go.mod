@@ -1,4 +1,4 @@
-module github.com/Marco-Guerra/Federated-Learning-Network-Workload
+module github.com/wocn-unicamp/TraceFL-Net-Sim
 
 go 1.22.2
 

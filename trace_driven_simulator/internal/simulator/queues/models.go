@@ -1,7 +1,7 @@
 package queues
 
 import (
-	"github.com/Marco-Guerra/Federated-Learning-Network-Workload/trace_driven_simulator/packages/writer"
+	"github.com/wocn-unicamp/TraceFL-Net-Sim/trace_driven_simulator/packages/writer"
 )
 
 type EventType uint8
@@ -71,7 +71,6 @@ type GlobalOptions struct {
 
 type EventQueue struct {
 	options        *GlobalOptions
-	queue          []*Packet
 	events         *EventHeap
 	resultsWritter *writer.Writer
 	currentTime    float64
@@ -92,11 +91,9 @@ func (h EventHeap) Less(i, j int) bool {
 	if h[i].ClientID != h[j].ClientID {
 		return h[i].ClientID < h[j].ClientID
 	}
-
 	if h[i].Packet.Type != h[j].Packet.Type {
 		return h[i].Packet.Type < h[j].Packet.Type
 	}
-
 	return h[i].Packet.Id < h[j].Packet.Id
 }
 
