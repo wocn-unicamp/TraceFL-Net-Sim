@@ -13,13 +13,26 @@ const (
 	PROP_SPEED         float32 = 300000000 // 3 * 10**8 m/s
 	CHANN_LEN          float32 = 1000      // 1 km
 	EVAL_TIME          float64 = 1         // 1 s
+	ALPHA_BG       	   float64 = 1.5       // Heavy-tail web browsing model parameter for Pareto distribution
+	ON_MEAN_BG         float64 = 0.1       // Mean ON time for ON/OFF background traffic model (in seconds)
+	OFF_MEAN_BG        float64 = 0.9       // Mean OFF time for ON/OFF background traffic model (in seconds)
+)
+
+type TrafficModel string
+
+const (
+	POISSON TrafficModel = "POISSON"
+	PARETO  TrafficModel = "PARETO"
+	ONOFF   TrafficModel = "ONOFF"
 )
 
 type GlobalOptions struct {
-	MaxNumberOfRounds         int
-	ClientsBandwidth          uint32
-	ServerBandwidth           uint32
-	WorkloadBackgroundClients uint32
+	MaxNumberOfRounds      int
+	ClientsBandwidth       uint32
+	ServerBandwidth        uint32
+	Seed 				   uint64
+	BackgroundTrafficLoad  float64
+	BackgroundTrafficModel TrafficModel
 }
 
 type TraceDriven struct {

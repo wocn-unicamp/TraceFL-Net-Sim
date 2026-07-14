@@ -25,13 +25,11 @@ func New(options *GlobalOptions) *TraceDriven {
 
 func (td *TraceDriven) RunSimulation(trace_filename string) {
 	td.readTrace(trace_filename)
-
 	td.resultsWritter.Close()
 }
 
 func (td *TraceDriven) calculeMetrics(results *queues.Output) float64 {
 	meanDelay := results.Delay / float64(results.NumPackets)
-
 	return meanDelay
 }
 
@@ -58,13 +56,30 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 	}
 
 	seed := uint64(time.Now().Unix())
+	if td.options.Seed != 0 {
+		seed = td.options.Seed
+	}
 	rng := rand.New(rand.NewSource(seed))
 
 	var packetCounter uint64 = 0
 	var currentTime float64 = 0.0
 	var previousTime float64 = 0.0
-	var backgroundTrafficMean float64 = float64(td.options.WorkloadBackgroundClients) / (((float64(ETHERNET_HEADER) + float64(ETHERNET_MIN_FRAME) + float64(ETHERNET_MTU)) / 2) * 8)
 	var tmutex sync.Mutex = sync.Mutex{}
+
+	// Calculate the mean arrival interval dynamically based on bandwidth load
+	// Average packet size estimation based on the simulator's uniform random generator bounds
+	minFrameSize := float64(ETHERNET_MIN_FRAME)
+	maxFrameSize := minFrameSize - float64(ETHERNET_HEADER) + float64(ETHERNET_MTU)
+	averagePacketSizeBits := ((minFrameSize + maxFrameSize) / 2.0) * 8.0
+
+	targetBandwidthBps := td.options.BackgroundTrafficLoad * float64(td.options.ServerBandwidth)
+	var meanArrivalInterval float64
+	if targetBandwidthBps > 0 {
+		meanArrivalRate := targetBandwidthBps / averagePacketSizeBits
+		meanArrivalInterval = 1.0 / meanArrivalRate
+	} else {
+		meanArrivalInterval = math.Inf(1)
+	}
 
 	// Find the maximum round number
 	rounds := 0
@@ -98,11 +113,9 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 	}
 
 	td.resultsWritter = writer.New(uint32(len(records)), "metrics_network_"+leafExperimentMeta)
-
 	go td.resultsWritter.Start()
 
 	nclient := nFLClients + 1
-
 	queuesOPT := make([]*queues.GlobalOptions, nclient)
 
 	for i := range nclient {
@@ -113,6 +126,14 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 			PropagationSpeed: PROP_SPEED,
 			ChannelLength:    CHANN_LEN,
 		}
+	}
+
+	bgIsBursting := false
+	bgMeanOn := ON_MEAN_BG
+	bgMeanOff := OFF_MEAN_BG
+	bgNextTransitionTime := make([]float64, nclient)
+	for i := range nclient {
+		bgNextTransitionTime[i] = -math.Log(1-rng.Float64()) * bgMeanOff
 	}
 
 	for round := 1; round <= rounds; round++ {
@@ -169,7 +190,6 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 				heap.Push(&workloads[clientID-1], event)
 
 				messageSize -= int(ETHERNET_MTU)
-
 				packetCounter++
 			}
 
@@ -196,13 +216,11 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 			}
 
 			heap.Push(&workloads[clientID-1], event)
-
 			packetCounter++
 		}
 
 		previousTime = currentTime
 
-		// Update current time
 		for _, client := range clients {
 			clientTime, _ := strconv.ParseFloat(client[6], 64)
 			if clientTime > currentTime {
@@ -211,8 +229,56 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 		}
 
 		for i := nFLClients; i < nclient; i++ {
-			var arrivalInterval float64 = 0
-			for localtime := float64(previousTime); localtime <= float64(currentTime); localtime += arrivalInterval {
+			if meanArrivalInterval == math.Inf(1) {
+				continue
+			}
+
+			localtime := float64(previousTime)
+
+			for {
+				var arrivalInterval float64
+
+				switch td.options.BackgroundTrafficModel {
+				case PARETO:
+					alpha := ALPHA_BG
+					xm := meanArrivalInterval * ((alpha - 1.0) / alpha)
+					u := rng.Float64()
+					arrivalInterval = xm / math.Pow(1.0-u, 1.0/alpha)
+
+				case ONOFF:
+					// Advance OnOff state machine if local time crossed the transition threshold
+					for localtime >= bgNextTransitionTime[i] {
+						bgIsBursting = !bgIsBursting
+						if bgIsBursting {
+							bgNextTransitionTime[i] += -math.Log(1-rng.Float64()) * bgMeanOn
+						} else {
+							bgNextTransitionTime[i] += -math.Log(1-rng.Float64()) * bgMeanOff
+						}
+					}
+
+					// If OFF, fast-forward local time to the next burst
+					if !bgIsBursting {
+						localtime = bgNextTransitionTime[i]
+						bgIsBursting = true
+						bgNextTransitionTime[i] += -math.Log(1-rng.Float64()) * bgMeanOn
+					}
+
+					// During ON phase, traffic arrives much faster to maintain the overall mean
+					burstFactor := (bgMeanOn + bgMeanOff) / bgMeanOn
+					burstArrivalInterval := meanArrivalInterval / burstFactor
+					arrivalInterval = -math.Log(1-rng.Float64()) * burstArrivalInterval
+
+				case POISSON:
+					fallthrough
+				default:
+					arrivalInterval = -math.Log(1-rng.Float64()) * meanArrivalInterval
+				}
+
+				localtime += arrivalInterval
+				if localtime > float64(currentTime) {
+					break
+				}
+
 				mssSize := uint32(ETHERNET_MIN_FRAME) + rng.Uint32()%uint32(uint16(ETHERNET_MIN_FRAME-ETHERNET_HEADER)+ETHERNET_MTU+1)
 
 				packet := &queues.Packet{
@@ -233,21 +299,16 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 				}
 
 				heap.Push(&workloads[i], event)
-
 				packetCounter++
-
-				arrivalInterval = (-math.Log(1-rand.Float64()) / backgroundTrafficMean)
 			}
 		}
 
 		for i := range dqueues {
 			queuesOPT[i].MaxQueue = uint16(math.Floor((float64(workloads[i].Len()) * 0.10)))
-
 			dqueues[i] = queues.New(queuesOPT[i], &workloads[i], td.resultsWritter)
 		}
 
 		qwg := sync.WaitGroup{}
-
 		qwg.Add(nclient)
 
 		for i := range nclient {
@@ -268,7 +329,6 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 					qid+1,
 					meanDelay,
 				)
-
 				fmt.Print(resultString)
 
 				tmutex.Lock()
@@ -283,11 +343,13 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 
 		qwg.Wait()
 
+		queueWorkloadMetric := uint32(math.Round(td.options.BackgroundTrafficLoad * 100))
+
 		serverQueue := queues.New(&queues.GlobalOptions{
 			MaxQueue:           uint16(math.Floor((float64(serverWorkload.Len()) * 0.10))),
 			NetType:            queues.SERVER,
 			Bandwidth:          td.options.ServerBandwidth,
-			BackgroundWorkload: td.options.WorkloadBackgroundClients,
+			BackgroundWorkload: queueWorkloadMetric,
 			PacketHeader:       ETHERNET_HEADER,
 			EvalTime:           EVAL_TIME,
 			MinPacketSize:      ETHERNET_MIN_FRAME,
@@ -300,14 +362,12 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 		)
 
 		sqout := serverQueue.Start()
-
 		meanDelay := td.calculeMetrics(sqout)
 
 		resultString := fmt.Sprintf("%d,0,%f\n",
 			round,
 			meanDelay,
 		)
-
 		fmt.Print(resultString)
 	}
 }
