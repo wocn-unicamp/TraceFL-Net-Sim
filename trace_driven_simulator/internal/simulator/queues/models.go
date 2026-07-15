@@ -58,15 +58,18 @@ type Output struct {
 
 type GlobalOptions struct {
 	NetType
-	PacketHeader       uint8
-	MinPacketSize      uint8
-	MaxPacketSize      uint16
-	MaxQueue           uint16
-	Bandwidth          uint32
-	BackgroundWorkload uint32
-	ChannelLength      float32
-	PropagationSpeed   float32
-	EvalTime           float64
+	PacketHeader          uint8
+	MinPacketSize         uint8
+	InfiniteBuffer        bool
+	MaxPacketSize         uint16
+	MaxQueue              uint16
+	EnableRetransmission  bool
+	RetransmissionBackoff float64
+	Bandwidth             uint32
+	BackgroundWorkload    uint32
+	ChannelLength         float32
+	PropagationSpeed      float32
+	EvalTime              float64
 }
 
 type EventQueue struct {
@@ -84,6 +87,10 @@ func (h EventHeap) Len() int { return len(h) }
 func (h EventHeap) Less(i, j int) bool {
 	if h[i].Time != h[j].Time {
 		return h[i].Time < h[j].Time
+	}
+	// TIE-BREAKER MECHANISM: Prioritize DEPARTURE before ARRIVAL
+	if h[i].Type != h[j].Type {
+		return h[i].Type > h[j].Type
 	}
 	if h[i].RoundNumber != h[j].RoundNumber {
 		return h[i].RoundNumber < h[j].RoundNumber

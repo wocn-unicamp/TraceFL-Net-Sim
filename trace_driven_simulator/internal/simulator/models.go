@@ -34,6 +34,10 @@ type GlobalOptions struct {
 	Seed                   uint64
 	BackgroundTrafficLoad  float64
 	BackgroundTrafficModel TrafficModel
+	MaxQueueSize           uint16
+	InfiniteBuffer         bool
+	EnableRetransmission   bool
+	RetransmissionBackoff  float64
 }
 
 type TraceDriven struct {

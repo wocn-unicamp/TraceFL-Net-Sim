@@ -29,10 +29,6 @@ func (td *TraceDriven) RunSimulation(trace_filename string) {
 }
 
 func (td *TraceDriven) calculeMetrics(results *queues.Output) float64 {
-	// Prevent division by zero (NaN) if a client had no packets in this round
-	if results.NumPackets == 0 {
-		return 0.0
-	}
 	meanDelay := results.Delay / float64(results.NumPackets)
 	return meanDelay
 }
@@ -71,6 +67,7 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 	var tmutex sync.Mutex = sync.Mutex{}
 
 	// Calculate the mean arrival interval dynamically based on bandwidth load
+	// Average packet size estimation based on the simulator's uniform random generator bounds
 	minFrameSize := float64(ETHERNET_MIN_FRAME)
 	maxFrameSize := minFrameSize - float64(ETHERNET_HEADER) + float64(ETHERNET_MTU)
 	averagePacketSizeBits := ((minFrameSize + maxFrameSize) / 2.0) * 8.0
@@ -123,27 +120,24 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 
 	for i := range nclient {
 		queuesOPT[i] = &queues.GlobalOptions{
-			Bandwidth:        td.options.ClientsBandwidth,
-			NetType:          queues.CLIENT,
-			EvalTime:         EVAL_TIME,
-			PropagationSpeed: PROP_SPEED,
-			ChannelLength:    CHANN_LEN,
+			Bandwidth:             td.options.ClientsBandwidth,
+			NetType:               queues.CLIENT,
+			EvalTime:              EVAL_TIME,
+			PropagationSpeed:      PROP_SPEED,
+			ChannelLength:         CHANN_LEN,
+			InfiniteBuffer:        td.options.InfiniteBuffer,
+			MaxQueue:              td.options.MaxQueueSize,
+			EnableRetransmission:  td.options.EnableRetransmission,
+			RetransmissionBackoff: td.options.RetransmissionBackoff,
 		}
 	}
 
-	// Setup independent Pareto On/Off state machines for every background client
-	bgIsBursting := make([]bool, nclient)
+	bgIsBursting := false
+	bgMeanOn := ON_MEAN_BG
+	bgMeanOff := OFF_MEAN_BG
 	bgNextTransitionTime := make([]float64, nclient)
-
-	// Pre-calculate Pareto Scale Parameters (Xm) to match the target Mean times
-	alpha := ALPHA_BG
-	xmOn := ON_MEAN_BG * ((alpha - 1.0) / alpha)
-	xmOff := OFF_MEAN_BG * ((alpha - 1.0) / alpha)
-
-	// Initialize all clients to start in a Pareto OFF state
 	for i := range nclient {
-		u := rng.Float64()
-		bgNextTransitionTime[i] = xmOff / math.Pow(1.0-u, 1.0/alpha)
+		bgNextTransitionTime[i] = -math.Log(1-rng.Float64()) * bgMeanOff
 	}
 
 	for round := 1; round <= rounds; round++ {
@@ -230,13 +224,16 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 		}
 
 		previousTime = currentTime
+		var maxClientTime float64 = 0.0
 
 		for _, client := range clients {
 			clientTime, _ := strconv.ParseFloat(client[6], 64)
-			if clientTime > currentTime {
-				currentTime = clientTime
+			if clientTime > maxClientTime {
+				maxClientTime = clientTime
 			}
 		}
+
+		currentTime = previousTime + maxClientTime
 
 		for i := nFLClients; i < nclient; i++ {
 			if meanArrivalInterval == math.Inf(1) {
@@ -250,34 +247,32 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 
 				switch td.options.BackgroundTrafficModel {
 				case PARETO:
-					// Standard independent heavy-tail arrivals
-					u := rng.Float64()
+					alpha := ALPHA_BG
 					xm := meanArrivalInterval * ((alpha - 1.0) / alpha)
+					u := rng.Float64()
 					arrivalInterval = xm / math.Pow(1.0-u, 1.0/alpha)
 
 				case ONOFF:
-					// Classic Pareto On/Off process for self-similar traffic
+					// Advance OnOff state machine if local time crossed the transition threshold
 					for localtime >= bgNextTransitionTime[i] {
-						bgIsBursting[i] = !bgIsBursting[i]
-						u := rng.Float64()
-						if bgIsBursting[i] {
-							bgNextTransitionTime[i] += xmOn / math.Pow(1.0-u, 1.0/alpha)
+						bgIsBursting = !bgIsBursting
+						if bgIsBursting {
+							bgNextTransitionTime[i] += -math.Log(1-rng.Float64()) * bgMeanOn
 						} else {
-							bgNextTransitionTime[i] += xmOff / math.Pow(1.0-u, 1.0/alpha)
+							bgNextTransitionTime[i] += -math.Log(1-rng.Float64()) * bgMeanOff
 						}
 					}
 
-					// Fast-forward local time over the idle OFF gap
-					if !bgIsBursting[i] {
+					// If OFF, fast-forward local time to the next burst
+					if !bgIsBursting {
 						localtime = bgNextTransitionTime[i]
-						bgIsBursting[i] = true
-						u := rng.Float64()
-						bgNextTransitionTime[i] += xmOn / math.Pow(1.0-u, 1.0/alpha)
+						bgIsBursting = true
+						bgNextTransitionTime[i] += -math.Log(1-rng.Float64()) * bgMeanOn
 					}
 
-					burstFactor := (ON_MEAN_BG + OFF_MEAN_BG) / ON_MEAN_BG
+					// During ON phase, traffic arrives much faster to maintain the overall mean
+					burstFactor := (bgMeanOn + bgMeanOff) / bgMeanOn
 					burstArrivalInterval := meanArrivalInterval / burstFactor
-					// During the ON burst, packets arrive at Poisson intervals matching the burst rate
 					arrivalInterval = -math.Log(1-rng.Float64()) * burstArrivalInterval
 
 				case POISSON:
@@ -329,7 +324,6 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 
 				tmutex.Lock()
 				if qout.SimTime > currentTime {
-					previousTime = currentTime
 					currentTime = qout.SimTime
 				}
 				tmutex.Unlock()
@@ -364,16 +358,19 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 		serverDelay := basePropDelay + internetJitter
 
 		serverQueue := queues.New(&queues.GlobalOptions{
-			MaxQueue:           uint16(math.Floor((float64(serverWorkload.Len()) * 0.10))),
-			NetType:            queues.SERVER,
-			Bandwidth:          td.options.ServerBandwidth,
-			BackgroundWorkload: queueWorkloadMetric,
-			PacketHeader:       ETHERNET_HEADER,
-			EvalTime:           EVAL_TIME,
-			MinPacketSize:      ETHERNET_MIN_FRAME,
-			MaxPacketSize:      ETHERNET_MTU,
-			PropagationSpeed:   1.0,
-			ChannelLength:      float32(serverDelay),
+			InfiniteBuffer:        td.options.InfiniteBuffer,
+			MaxQueue:              td.options.MaxQueueSize,
+			EnableRetransmission:  td.options.EnableRetransmission,
+			RetransmissionBackoff: td.options.RetransmissionBackoff,
+			NetType:               queues.SERVER,
+			Bandwidth:             td.options.ServerBandwidth,
+			BackgroundWorkload:    queueWorkloadMetric,
+			PacketHeader:          ETHERNET_HEADER,
+			EvalTime:              EVAL_TIME,
+			MinPacketSize:         ETHERNET_MIN_FRAME,
+			MaxPacketSize:         ETHERNET_MTU,
+			PropagationSpeed:      1.0,
+			ChannelLength:         float32(serverDelay),
 		},
 			&serverWorkload,
 			td.resultsWritter,

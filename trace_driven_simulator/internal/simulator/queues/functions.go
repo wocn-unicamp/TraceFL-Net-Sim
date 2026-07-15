@@ -39,14 +39,14 @@ func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
 	var totalBytes uint64 = 0
 	var totalDelay float64 = 0
 	var outWorkload *EventHeap = nil
-	simStartTime := (*evq.events)[0].Time
 
 	if evq.options.NetType != SERVER {
 		tmp := make(EventHeap, 0, numPackets)
 		outWorkload = &tmp
 	}
 
-	lastDepartureTime := -1.0 
+	lastDepartureTime := -1.0
+	currentBufferSize := 0
 
 	bandwidthFactor := 8.0 / float64(evq.options.Bandwidth)
 	propagationDelay := float64(evq.options.ChannelLength / evq.options.PropagationSpeed)
@@ -63,6 +63,32 @@ func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
 				os.Exit(2)
 			}
 
+			if !evq.options.InfiniteBuffer && currentBufferSize >= int(evq.options.MaxQueue) {
+				if evq.options.EnableRetransmission {
+					// Retrieve Explicit Backoff, or fallback to dynamic network RTO
+					backoff := evq.options.RetransmissionBackoff
+					if backoff <= 0.0 {
+						// RTO Fallback = Time to transmit packet + Round Trip Time
+						transmitTime := float64(event.Packet.Size) * bandwidthFactor
+						rtt := 2.0 * propagationDelay
+						backoff = transmitTime + rtt
+					}
+
+					// Schedule the re-transmission in the future relative to NOW.
+					// This allows subsequent packets (like p3, p4) to arrive and be processed.
+					retryTime := evq.currentTime + backoff
+					event.Time = retryTime
+					event.Packet.ArrivalTime = retryTime
+
+					heap.Push(evq.events, event)
+				}
+				// If EnableRetransmission is false, the packet is permanently dropped.
+				continue
+			}
+
+			// Buffer accepted the packet
+			currentBufferSize++
+
 			if lastDepartureTime < event.Packet.ArrivalTime {
 				event.Packet.StartServiceTime = event.Packet.ArrivalTime
 			} else {
@@ -74,10 +100,12 @@ func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
 
 			event.Time = event.Packet.DepartureTime
 			event.Type = DEPARTURE
-			
+
 			heap.Push(evq.events, event)
 
 		case DEPARTURE:
+			currentBufferSize--
+
 			totalBytes += uint64(event.Packet.Size)
 
 			if event.Packet.Type == LAST {
@@ -126,5 +154,5 @@ func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
 		}
 	}
 
-	return numPackets, evq.currentTime - simStartTime, totalDelay, outWorkload
+	return numPackets, evq.currentTime, totalDelay, outWorkload
 }
