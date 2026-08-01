@@ -73,10 +73,12 @@ type GlobalOptions struct {
 }
 
 type EventQueue struct {
-	options        *GlobalOptions
-	events         *EventHeap
-	resultsWritter *writer.Writer
-	currentTime    float64
+	options           *GlobalOptions
+	events            *EventHeap
+	resultsWritter    *writer.Writer
+	currentTime       float64
+	LastDepartureTime float64
+	CurrentBufferSize int
 }
 
 // EventHeap implements heap.Interface and holds Events

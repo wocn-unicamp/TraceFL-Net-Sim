@@ -12,9 +12,11 @@ import (
 
 func New(options *GlobalOptions, workload *EventHeap, rwritter *writer.Writer) *EventQueue {
 	return &EventQueue{
-		options:        options,
-		events:         workload,
-		resultsWritter: rwritter,
+		options:           options,
+		events:            workload,
+		resultsWritter:    rwritter,
+		LastDepartureTime: -1.0,
+		CurrentBufferSize: 0,
 	}
 }
 
@@ -45,9 +47,6 @@ func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
 		outWorkload = &tmp
 	}
 
-	lastDepartureTime := -1.0
-	currentBufferSize := 0
-
 	bandwidthFactor := 8.0 / float64(evq.options.Bandwidth)
 	propagationDelay := float64(evq.options.ChannelLength / evq.options.PropagationSpeed)
 
@@ -63,7 +62,7 @@ func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
 				os.Exit(2)
 			}
 
-			if !evq.options.InfiniteBuffer && currentBufferSize >= int(evq.options.MaxQueue) {
+			if !evq.options.InfiniteBuffer && evq.CurrentBufferSize >= int(evq.options.MaxQueue) {
 				if evq.options.EnableRetransmission {
 					// Retrieve Explicit Backoff, or fallback to dynamic network RTO
 					backoff := evq.options.RetransmissionBackoff
@@ -87,16 +86,16 @@ func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
 			}
 
 			// Buffer accepted the packet
-			currentBufferSize++
+			evq.CurrentBufferSize++
 
-			if lastDepartureTime < event.Packet.ArrivalTime {
+			if evq.LastDepartureTime < event.Packet.ArrivalTime {
 				event.Packet.StartServiceTime = event.Packet.ArrivalTime
 			} else {
-				event.Packet.StartServiceTime = lastDepartureTime
+				event.Packet.StartServiceTime = evq.LastDepartureTime
 			}
 
 			event.Packet.DepartureTime = event.Packet.StartServiceTime + (float64(event.Packet.Size) * bandwidthFactor)
-			lastDepartureTime = event.Packet.DepartureTime
+			evq.LastDepartureTime = event.Packet.DepartureTime
 
 			event.Time = event.Packet.DepartureTime
 			event.Type = DEPARTURE
@@ -104,7 +103,7 @@ func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
 			heap.Push(evq.events, event)
 
 		case DEPARTURE:
-			currentBufferSize--
+			evq.CurrentBufferSize--
 
 			totalBytes += uint64(event.Packet.Size)
 
