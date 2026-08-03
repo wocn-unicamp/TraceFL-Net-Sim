@@ -436,13 +436,13 @@ def plot_combined_ecdf(curves: list, out_png: str, xmax_gflops: float = 6.0):
     color_handles, seen_labels = [], set()
 
     name_map = {
-        "fedavg_c_50_e_1": "Batch 100%",
-        "minibatch_c_20_mb_0.9": "Batch 90%",
-        "minibatch_c_20_mb_0.8": "Batch 80%",
-        "minibatch_c_20_mb_0.6": "Batch 60%",
-        "minibatch_c_20_mb_0.5": "Batch 50%",
-        "minibatch_c_20_mb_0.4": "Batch 40%",
-        "minibatch_c_20_mb_0.2": "Batch 20%",
+        "fedavg_c_50_e_1": "Batch 1.0",
+        "minibatch_c_20_mb_0.9": "Batch 0.9",
+        "minibatch_c_20_mb_0.8": "Batch 0.8",
+        "minibatch_c_20_mb_0.6": "Batch 0.6",
+        "minibatch_c_20_mb_0.5": "Batch 0.5",
+        "minibatch_c_20_mb_0.4": "Batch 0.4",
+        "minibatch_c_20_mb_0.2": "Batch 0.2",
     }
 
     # --- Curvas (GFLOPs en X, % en Y) ---
@@ -466,7 +466,7 @@ def plot_combined_ecdf(curves: list, out_png: str, xmax_gflops: float = 6.0):
             seen_labels.add(lbl)
 
     # --- Ejes y estilo ---
-    ax.set_xlabel("Computational demand (GFLOPs)", fontsize=15, labelpad=6)
+    ax.set_xlabel("Computational demand (GFLOP/round)", fontsize=15, labelpad=6)
     ax.set_ylabel("Clients (%)", fontsize=15, labelpad=6)
 
     # ticks: X=13, Y=15
@@ -478,7 +478,8 @@ def plot_combined_ecdf(curves: list, out_png: str, xmax_gflops: float = 6.0):
     ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{int(y)}"))
 
     # X en 0..xmax_gflops con ticks enteros
-    ax.set_xlim(0, float(xmax_gflops))
+    # ax.set_xlim(0, float(xmax_gflops))
+    ax.set_xlim(0, 5)     
     ax.xaxis.set_major_locator(FixedLocator(np.arange(0, float(xmax_gflops) + 1e-9, 1.0)))
 
     ax.grid(True, alpha=0.3)

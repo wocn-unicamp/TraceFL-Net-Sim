@@ -6,7 +6,7 @@ from matplotlib.ticker import MultipleLocator
 
 # ================================ Config =====================================
 
-folder_path = "../results_backup/stat/"
+folder_path = "../results/stat/"
 
 file_bases_1 = [
     "stat_metrics_fedavg_c_50_e_1",
@@ -18,13 +18,23 @@ file_bases_1 = [
 ]
 
 file_bases_2 = [
-    "stat_metrics_minibatch_c_20_mb_0.9",
-    "stat_metrics_minibatch_c_20_mb_0.8",
-    "stat_metrics_minibatch_c_20_mb_0.6",
-    "stat_metrics_minibatch_c_20_mb_0.5",
-    "stat_metrics_minibatch_c_20_mb_0.4",
-    "stat_metrics_minibatch_c_20_mb_0.2",
+    "stat_metrics_minibatch_c_30_mb_0.9",
+    "stat_metrics_minibatch_c_30_mb_0.8",
+    "stat_metrics_minibatch_c_30_mb_0.6",
+    "stat_metrics_minibatch_c_30_mb_0.5",
+    "stat_metrics_minibatch_c_30_mb_0.4",
+    "stat_metrics_minibatch_c_30_mb_0.2",
+    #  "stat_metrics_minibatch_c_30_mb_0.1",
 ]
+
+# file_bases_2 = [
+#     "stat_metrics_minibatch_c_20_mb_0.9",
+#     "stat_metrics_minibatch_c_20_mb_0.8",
+#     "stat_metrics_minibatch_c_20_mb_0.6",
+#     "stat_metrics_minibatch_c_20_mb_0.5",
+#     "stat_metrics_minibatch_c_20_mb_0.4",
+#     "stat_metrics_minibatch_c_20_mb_0.2",
+# ]
 
 file_bases_3 = [
     "stat_metrics_shakespeare_fedavg_c_3_e_1",

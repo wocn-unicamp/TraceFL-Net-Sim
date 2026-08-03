@@ -7,7 +7,7 @@ from matplotlib.ticker import PercentFormatter
 PARAMS_FILE     = "params/mix_lognorm_shift_params.txt"
 OUT_DIR         = "figures/monte_carlo"
 NUM_CLIENTS     = 20
-NUM_SIMULATIONS = 100
+NUM_SIMULATIONS = 1000000
 SEED_FLOPS      = 123
 SEED_CAPS       = 456
 DPI             = 300
@@ -178,7 +178,7 @@ def plot_time_cdf_pdf(xs, Fn, edges, probs, label, cutoff=None):
 def plot_capacity_cdf_pdf(xs, Fn, edges, probs, label):
     ensure_dir(OUT_DIR)
     path = os.path.join(OUT_DIR, f"capacity_{label}.png")
-    _plot_dual_axis(xs, Fn, edges, probs, "Capacity (GFLOPs/s)", XLIM_CAPACITY, path)
+    _plot_dual_axis(xs, Fn, edges, probs, "Capacity (GFLOP/s)", XLIM_CAPACITY, path)
 
 def plot_load_bar(bin_left_edges, mean_mbps, ci_low, ci_high,
                   bin_size_s=1.0, label=None, out_dir=OUT_DIR,
@@ -232,7 +232,7 @@ if __name__ == "__main__":
         edges, probs = compute_hist_prob(T.ravel(), BIN_W)
 
         # corte al 99.9 %
-        cutoff_idx = np.searchsorted(Fn, 1.0) # 0.999
+        cutoff_idx = np.searchsorted(Fn, 0.999) # 0.999
         round_duration = float(xs[min(cutoff_idx, len(xs) - 1)])
 
         # graficar CDF truncada en 99.9 %

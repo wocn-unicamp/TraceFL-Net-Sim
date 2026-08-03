@@ -15,7 +15,7 @@ OUT_TXT          = "params/mix_lognorm_shift_params.txt"
 
 RANDOM_STATE   = 42
 N_SIM_MIN      = 1000
-X_LABEL        = "GFLOPs"
+X_LABEL        = "GFLOP/round"
 HIST_BINS      = 64
 SMOOTH_WINDOW  = 7
 XLIM_MAX       = 5e9
@@ -309,7 +309,7 @@ def plot_histogram_smoothed(v, out_path=OUT_FIG_HIST):
 
     # --- Etiquetas de ejes y estilo ---
     ax_cdf.set_title(TEXTS["hist"]["title"], fontsize=FONT_CFG["title"], pad=6)
-    ax_cdf.set_xlabel("Computational demand (GFLOPs)", fontsize=FONT_CFG["axis"], labelpad=TICK_CFG["xpad"])
+    ax_cdf.set_xlabel("Computational demand (GFLOP/round)", fontsize=FONT_CFG["axis"], labelpad=TICK_CFG["xpad"])
 
     ax_cdf.set_ylim(0, 1.0)
     ax_cdf.set_ylabel("CDF Clients (%)", fontsize=FONT_CFG["axis"], labelpad=TICK_CFG["ypad"])
@@ -439,7 +439,7 @@ def plot_mixture_hist_with_ecdf(x, comp, bins=HIST_BINS, mode="stacked",
                        alpha=0.9, edgecolors="white", linewidths=0.4)
 
     ax_cdf.set_title(TEXTS["mixed"]["title"], fontsize=FONT_CFG["title"], pad=6)
-    ax_cdf.set_xlabel("Computational demand (GFLOPs)",
+    ax_cdf.set_xlabel("Computational demand (GFLOP/round)",
                       fontsize=FONT_CFG["axis"], labelpad=TICK_CFG["xpad"])
     ax_cdf.set_ylim(0, 1)
     ax_cdf.set_ylabel("CDF Clients (%)",

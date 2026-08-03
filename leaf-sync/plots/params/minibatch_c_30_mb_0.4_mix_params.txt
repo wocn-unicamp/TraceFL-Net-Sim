@@ -1,0 +1,6 @@
+MixShiftedLogNorm(k=3) | loc=2.427651e+07
+ comp1: w=0.215510, mu_log=20.201831, sigma=0.209752
+ comp2: w=0.366320, mu_log=21.132541, sigma=0.160218
+ comp3: w=0.418170, mu_log=20.459176, sigma=0.031623
+BIC=-15293.71  KS=0.232413
+upper_trunc=2.004430e+09  Fu=0.984000  tail_mass_cut=0.016000
