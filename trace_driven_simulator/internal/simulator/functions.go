@@ -140,6 +140,16 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 		bgNextTransitionTime[i] = -math.Log(1-rng.Float64()) * bgMeanOff
 	}
 
+	// 1. Declare state trackers BEFORE the rounds loop
+	serverLastDepartureTime := -1.0
+	serverCurrentBufferSize := 0
+
+	clientLastDepartureTime := make([]float64, nclient)
+	clientCurrentBufferSize := make([]int, nclient)
+	for i := range clientLastDepartureTime {
+		clientLastDepartureTime[i] = -1.0
+	}
+
 	for round := 1; round <= rounds; round++ {
 		if round >= td.options.MaxNumberOfRounds && td.options.MaxNumberOfRounds != -1 {
 			break
@@ -313,6 +323,10 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 		for i := range dqueues {
 			queuesOPT[i].MaxQueue = uint16(math.Floor((float64(workloads[i].Len()) * 0.10)))
 			dqueues[i] = queues.New(queuesOPT[i], &workloads[i], td.resultsWritter)
+
+			// 2. INJECT state into client queues
+			dqueues[i].LastDepartureTime = clientLastDepartureTime[i]
+			dqueues[i].CurrentBufferSize = clientCurrentBufferSize[i]
 		}
 
 		qwg := sync.WaitGroup{}
@@ -321,6 +335,9 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 		for i := range nclient {
 			go func(qid int) {
 				qout := dqueues[qid].Start()
+
+				clientLastDepartureTime[qid] = dqueues[qid].LastDepartureTime
+				clientCurrentBufferSize[qid] = dqueues[qid].CurrentBufferSize
 
 				tmutex.Lock()
 				if qout.SimTime > currentTime {
@@ -376,7 +393,16 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 			td.resultsWritter,
 		)
 
+		// 4. INJECT state into the server queue
+		serverQueue.LastDepartureTime = serverLastDepartureTime
+		serverQueue.CurrentBufferSize = serverCurrentBufferSize
+
 		sqout := serverQueue.Start()
+
+		// 5. EXTRACT state from the server queue for the next round
+		serverLastDepartureTime = serverQueue.LastDepartureTime
+		serverCurrentBufferSize = serverQueue.CurrentBufferSize
+
 		meanDelay := td.calculeMetrics(sqout)
 
 		resultString := fmt.Sprintf("%d,0,%f\n",
