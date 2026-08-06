@@ -13,9 +13,7 @@ const (
 	PROP_SPEED           float32 = 300000000 // 3 * 10**8 m/s
 	CHANN_LEN            float32 = 1000      // 1 km
 	EVAL_TIME            float64 = 1         // 1 s
-	ALPHA_BG             float64 = 1.5       // Heavy-tail web browsing model parameter for Pareto distribution
-	ON_MEAN_BG           float64 = 0.1       // Mean ON time for ON/OFF background traffic model (in seconds)
-	OFF_MEAN_BG          float64 = 0.9       // Mean OFF time for ON/OFF background traffic model (in seconds)
+	ALPHA_BG             float64 = 1.4       // Heavy-tail web browsing model parameter for Pareto distribution
 	INTERNET_JITTER_MEAN float64 = 0.05      // 50ms average router queueing jitter for Shifted Exponential
 )
 
@@ -24,7 +22,8 @@ type TrafficModel string
 const (
 	POISSON TrafficModel = "POISSON"
 	PARETO  TrafficModel = "PARETO"
-	ONOFF   TrafficModel = "ONOFF"
+	CBR     TrafficModel = "CBR"
+	MULTI   TrafficModel = "MULTI"
 )
 
 type GlobalOptions struct {

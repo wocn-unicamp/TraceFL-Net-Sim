@@ -45,6 +45,176 @@ func (td *TraceDriven) calculeMetrics(results *queues.Output, backgroundTraffic 
 	return meanDelay
 }
 
+// -----------------------------------------------------------------------------
+// Geradores de Tráfego de Background
+// -----------------------------------------------------------------------------
+
+func (td *TraceDriven) generatePoissonTraffic(
+	rng *rand.Rand,
+	previousTime, bgEndTime float64,
+	targetBps float64,
+	workload *queues.EventHeap,
+	packetCounter *uint64,
+) {
+	if targetBps <= 0 {
+		return
+	}
+
+	minFrameSize := float64(ETHERNET_MIN_FRAME) // 64 bytes
+	maxFrameSize := 1518.0                      // MTU 1500 + Overhead
+	avgPacketBits := ((minFrameSize + maxFrameSize) / 2.0) * 8.0
+
+	meanArrivalRate := targetBps / avgPacketBits
+	meanArrivalInterval := 1.0 / meanArrivalRate
+
+	localtime := previousTime
+	for {
+		u := rng.Float64()
+		if u >= 1.0 {
+			u = 0.99999
+		}
+		arrivalInterval := -math.Log(1.0-u) * meanArrivalInterval
+
+		localtime += arrivalInterval
+		if localtime > bgEndTime {
+			break
+		}
+
+		mssSize := uint32(minFrameSize) + rng.Uint32()%uint32(maxFrameSize-minFrameSize+1)
+
+		packet := &queues.Packet{
+			MSSSize:        mssSize,
+			ArrivalTime:    localtime,
+			MSSArrivalTime: localtime,
+			Size:           mssSize,
+			Type:           queues.LAST,
+			Id:             *packetCounter,
+		}
+
+		event := &queues.Event{
+			Time:        packet.ArrivalTime,
+			RoundNumber: 1001,
+			ClientID:    4096,
+			Packet:      packet,
+			Type:        queues.ARRIVAL,
+		}
+
+		heap.Push(workload, event)
+		*packetCounter++
+	}
+}
+
+func (td *TraceDriven) generateCBRTraffic(
+	previousTime, bgEndTime float64,
+	targetBps float64,
+	workload *queues.EventHeap,
+	packetCounter *uint64,
+) {
+	if targetBps <= 0 {
+		return
+	}
+
+	const cbrPacketSize uint32 = 70 // Pacote fixo de 70 bytes conforme o artigo
+	cbrBits := float64(cbrPacketSize * 8)
+	arrivalInterval := cbrBits / targetBps
+
+	localtime := previousTime
+	for {
+		localtime += arrivalInterval
+		if localtime > bgEndTime {
+			break
+		}
+
+		packet := &queues.Packet{
+			MSSSize:        cbrPacketSize,
+			ArrivalTime:    localtime,
+			MSSArrivalTime: localtime,
+			Size:           cbrPacketSize,
+			Type:           queues.LAST,
+			Id:             *packetCounter,
+		}
+
+		event := &queues.Event{
+			Time:        packet.ArrivalTime,
+			RoundNumber: 1001,
+			ClientID:    4096,
+			Packet:      packet,
+			Type:        queues.ARRIVAL,
+		}
+
+		heap.Push(workload, event)
+		*packetCounter++
+	}
+}
+
+func (td *TraceDriven) generateParetoTraffic(
+	rng *rand.Rand,
+	previousTime, bgEndTime float64,
+	targetBps float64,
+	workload *queues.EventHeap,
+	packetCounter *uint64,
+) {
+	if targetBps <= 0 {
+		return
+	}
+
+	minFrameSize := float64(ETHERNET_MIN_FRAME) // 64 bytes
+	maxFrameSize := 1518.0                      // 1518 bytes
+	avgPacketBits := ((minFrameSize + maxFrameSize) / 2.0) * 8.0
+
+	meanArrivalRate := targetBps / avgPacketBits
+	meanArrivalInterval := 1.0 / meanArrivalRate
+
+	alpha := ALPHA_BG // 1.4 (Hurst H = 0.8)
+	xMin := meanArrivalInterval * ((alpha - 1.0) / alpha)
+	xMax := xMin * 1000.0 // Limite superior para a Bounded Pareto
+
+	minAlpha := math.Pow(xMin, -alpha)
+	maxAlpha := math.Pow(xMax, -alpha)
+
+	localtime := previousTime
+	for {
+		u := rng.Float64()
+		if u >= 1.0 {
+			u = 0.99999
+		}
+
+		// Amostragem da distribuição Bounded Pareto para o intervalo entre chegadas
+		arrivalInterval := math.Pow(minAlpha-u*(minAlpha-maxAlpha), -1.0/alpha)
+
+		localtime += arrivalInterval
+		if localtime > bgEndTime {
+			break
+		}
+
+		mssSize := uint32(minFrameSize) + rng.Uint32()%uint32(maxFrameSize-minFrameSize+1)
+
+		packet := &queues.Packet{
+			MSSSize:        mssSize,
+			ArrivalTime:    localtime,
+			MSSArrivalTime: localtime,
+			Size:           mssSize,
+			Type:           queues.LAST,
+			Id:             *packetCounter,
+		}
+
+		event := &queues.Event{
+			Time:        packet.ArrivalTime,
+			RoundNumber: 1001,
+			ClientID:    4096,
+			Packet:      packet,
+			Type:        queues.ARRIVAL,
+		}
+
+		heap.Push(workload, event)
+		*packetCounter++
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Leitura de Trace e Execução Principal
+// -----------------------------------------------------------------------------
+
 func (td *TraceDriven) readTrace(traceFilename string) {
 	parts := strings.Split(traceFilename, "_")
 	var leafExperimentMeta string
@@ -80,25 +250,13 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 	var previousTime float64 = 0.0
 	var tmutex sync.Mutex = sync.Mutex{}
 
-	// Calculate the mean arrival interval dynamically based on bandwidth load
-	minFrameSize := float64(ETHERNET_MIN_FRAME)
-	maxFrameSize := minFrameSize - float64(ETHERNET_HEADER) + float64(ETHERNET_MTU)
-	averagePacketSizeBits := ((minFrameSize + maxFrameSize) / 2.0) * 8.0
-
 	targetBandwidthBps := td.options.BackgroundTrafficLoad * float64(td.options.ServerBandwidth)
-	var meanArrivalInterval float64
-	if targetBandwidthBps > 0 {
-		meanArrivalRate := targetBandwidthBps / averagePacketSizeBits
-		meanArrivalInterval = 1.0 / meanArrivalRate
-	} else {
-		meanArrivalInterval = math.Inf(1)
-	}
 
-	// Find the maximum round number
+	// Encontrar número máximo de rodadas
 	rounds := 0
 	for i, record := range records {
 		if i == 0 {
-			continue // Skip header
+			continue // Pular cabeçalho
 		}
 		roundNumber, _ := strconv.Atoi(record[1])
 		if roundNumber > rounds {
@@ -106,12 +264,12 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 		}
 	}
 
-	// Find the number of clients
+	// Encontrar número de clientes
 	nFLClients := 0
 	lastNClients := 0
 	for i, record := range records {
 		if i == 0 {
-			continue // Skip header
+			continue
 		}
 
 		clientID, _ := strconv.Atoi(record[0])
@@ -151,15 +309,6 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 		}
 	}
 
-	bgIsBursting := false
-	bgMeanOn := ON_MEAN_BG
-	bgMeanOff := OFF_MEAN_BG
-	bgNextTransitionTime := make([]float64, nclient)
-	for i := range nclient {
-		bgNextTransitionTime[i] = -math.Log(1-rng.Float64()) * bgMeanOff
-	}
-
-	// State trackers BEFORE the rounds loop
 	serverLastDepartureTime := -1.0
 	serverCurrentBufferSize := 0
 
@@ -180,7 +329,7 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 
 		for i, record := range records {
 			if i == 0 {
-				continue // Skip header
+				continue
 			}
 			roundNumber, _ := strconv.Atoi(record[1])
 			if roundNumber == round {
@@ -265,76 +414,29 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 			serverCurrentBufferSize = 0
 		}
 
-		// Generate Background Traffic over the active client window [previousTime, bgEndTime]
+		// Geração de Tráfego de Background para a janela de execução ativa
 		for i := nFLClients; i < nclient; i++ {
-			if meanArrivalInterval == math.Inf(1) {
+			if targetBandwidthBps <= 0 {
 				continue
 			}
 
-			localtime := float64(previousTime)
+			switch td.options.BackgroundTrafficModel {
+			case CBR:
+				td.generateCBRTraffic(previousTime, bgEndTime, targetBandwidthBps, &workloads[i], &packetCounter)
 
-			for {
-				var arrivalInterval float64
+			case PARETO:
+				td.generateParetoTraffic(rng, previousTime, bgEndTime, targetBandwidthBps, &workloads[i], &packetCounter)
 
-				switch td.options.BackgroundTrafficModel {
-				case PARETO:
-					alpha := ALPHA_BG
-					xm := meanArrivalInterval * ((alpha - 1.0) / alpha)
-					u := rng.Float64()
-					arrivalInterval = xm / math.Pow(1.0-u, 1.0/alpha)
+			case MULTI:
+				thirdLoad := targetBandwidthBps / 3.0
+				td.generatePoissonTraffic(rng, previousTime, bgEndTime, thirdLoad, &workloads[i], &packetCounter)
+				td.generateCBRTraffic(previousTime, bgEndTime, thirdLoad, &workloads[i], &packetCounter)
+				td.generateParetoTraffic(rng, previousTime, bgEndTime, thirdLoad, &workloads[i], &packetCounter)
 
-				case ONOFF:
-					for localtime >= bgNextTransitionTime[i] {
-						bgIsBursting = !bgIsBursting
-						if bgIsBursting {
-							bgNextTransitionTime[i] += -math.Log(1-rng.Float64()) * bgMeanOn
-						} else {
-							bgNextTransitionTime[i] += -math.Log(1-rng.Float64()) * bgMeanOff
-						}
-					}
-
-					if !bgIsBursting {
-						localtime = bgNextTransitionTime[i]
-						bgIsBursting = true
-						bgNextTransitionTime[i] += -math.Log(1-rng.Float64()) * bgMeanOn
-					}
-
-					burstFactor := (bgMeanOn + bgMeanOff) / bgMeanOn
-					burstArrivalInterval := meanArrivalInterval / burstFactor
-					arrivalInterval = -math.Log(1-rng.Float64()) * burstArrivalInterval
-
-				case POISSON:
-					fallthrough
-				default:
-					arrivalInterval = -math.Log(1-rng.Float64()) * meanArrivalInterval
-				}
-
-				localtime += arrivalInterval
-				if localtime > bgEndTime {
-					break
-				}
-
-				mssSize := uint32(ETHERNET_MIN_FRAME) + rng.Uint32()%uint32(uint16(ETHERNET_MIN_FRAME-ETHERNET_HEADER)+ETHERNET_MTU+1)
-
-				packet := &queues.Packet{
-					MSSSize:        mssSize,
-					ArrivalTime:    localtime,
-					MSSArrivalTime: localtime,
-					Size:           mssSize,
-					Type:           queues.LAST,
-					Id:             packetCounter,
-				}
-
-				event := &queues.Event{
-					Time:        packet.ArrivalTime,
-					RoundNumber: 1001,
-					ClientID:    4096,
-					Packet:      packet,
-					Type:        queues.ARRIVAL,
-				}
-
-				heap.Push(&workloads[i], event)
-				packetCounter++
+			case POISSON:
+				fallthrough
+			default:
+				td.generatePoissonTraffic(rng, previousTime, bgEndTime, targetBandwidthBps, &workloads[i], &packetCounter)
 			}
 		}
 
