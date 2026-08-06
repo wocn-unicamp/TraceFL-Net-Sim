@@ -1,6 +1,8 @@
 package queues
 
 import (
+	"math/rand/v2"
+
 	"github.com/wocn-unicamp/TraceFL-Net-Sim/trace_driven_simulator/packages/writer"
 )
 
@@ -58,19 +60,21 @@ type Output struct {
 }
 
 type GlobalOptions struct {
+	RNG *rand.Rand
 	NetType
-	PacketHeader          uint8
-	MinPacketSize         uint8
-	InfiniteBuffer        bool
-	MaxPacketSize         uint16
-	MaxQueue              uint16
-	EnableRetransmission  bool
-	RetransmissionBackoff float64
-	Bandwidth             uint32
-	BackgroundWorkload    uint32
-	ChannelLength         float32
-	PropagationSpeed      float32
-	EvalTime              float64
+	PacketHeader            uint8
+	MinPacketSize           uint8
+	InfiniteBuffer          bool
+	MaxPacketSize           uint16
+	MaxQueue                uint16
+	EnableRetransmission    bool
+	RetransmissionBackoff   float64
+	Bandwidth               uint32
+	BackgroundWorkload      uint32
+	ChannelLength           float32
+	PropagationSpeed        float32
+	EvalTime                float64
+	TransmissionSuccessRate float64
 }
 
 type EventQueue struct {

@@ -28,16 +28,17 @@ const (
 )
 
 type GlobalOptions struct {
-	MaxNumberOfRounds      int
-	ClientsBandwidth       uint32
-	ServerBandwidth        uint32
-	Seed                   uint64
-	BackgroundTrafficLoad  float64
-	BackgroundTrafficModel TrafficModel
-	MaxQueueSize           uint16
-	InfiniteBuffer         bool
-	EnableRetransmission   bool
-	RetransmissionBackoff  float64
+	MaxNumberOfRounds       int
+	ClientsBandwidth        uint32
+	ServerBandwidth         uint32
+	Seed                    uint64
+	BackgroundTrafficLoad   float64
+	BackgroundTrafficModel  TrafficModel
+	MaxQueueSize            uint16
+	InfiniteBuffer          bool
+	EnableRetransmission    bool
+	RetransmissionBackoff   float64
+	TransmissionSuccessRate float64
 }
 
 type TraceDriven struct {

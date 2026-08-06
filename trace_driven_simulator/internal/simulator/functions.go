@@ -12,9 +12,10 @@ import (
 	"sync"
 	"time"
 
+	"math/rand/v2"
+
 	"github.com/wocn-unicamp/TraceFL-Net-Sim/trace_driven_simulator/internal/simulator/queues"
 	"github.com/wocn-unicamp/TraceFL-Net-Sim/trace_driven_simulator/packages/writer"
-	"golang.org/x/exp/rand"
 )
 
 func New(options *GlobalOptions) *TraceDriven {
@@ -66,11 +67,13 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 		log.Fatal("Error reading CSV file:", err)
 	}
 
-	seed := uint64(time.Now().Unix())
+	var seed uint64
 	if td.options.Seed != 0 {
 		seed = td.options.Seed
+	} else {
+		seed = uint64(time.Now().UnixNano())
 	}
-	rng := rand.New(rand.NewSource(seed))
+	rng := rand.New(rand.NewPCG(0, seed))
 
 	var packetCounter uint64 = 0
 	var currentTime float64 = 0.0
@@ -130,15 +133,17 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 
 	for i := range nclient {
 		queuesOPT[i] = &queues.GlobalOptions{
-			Bandwidth:             td.options.ClientsBandwidth,
-			NetType:               queues.CLIENT,
-			EvalTime:              EVAL_TIME,
-			PropagationSpeed:      PROP_SPEED,
-			ChannelLength:         CHANN_LEN,
-			InfiniteBuffer:        td.options.InfiniteBuffer,
-			MaxQueue:              td.options.MaxQueueSize,
-			EnableRetransmission:  td.options.EnableRetransmission,
-			RetransmissionBackoff: td.options.RetransmissionBackoff,
+			Bandwidth:               td.options.ClientsBandwidth,
+			NetType:                 queues.CLIENT,
+			EvalTime:                EVAL_TIME,
+			PropagationSpeed:        PROP_SPEED,
+			ChannelLength:           CHANN_LEN,
+			InfiniteBuffer:          td.options.InfiniteBuffer,
+			MaxQueue:                td.options.MaxQueueSize,
+			EnableRetransmission:    td.options.EnableRetransmission,
+			RetransmissionBackoff:   td.options.RetransmissionBackoff,
+			TransmissionSuccessRate: td.options.TransmissionSuccessRate,
+			RNG:                     rng,
 		}
 
 		if i == nFLClients {
@@ -387,19 +392,21 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 		serverDelay := basePropDelay + internetJitter
 
 		serverQueue := queues.New(&queues.GlobalOptions{
-			InfiniteBuffer:        td.options.InfiniteBuffer,
-			MaxQueue:              td.options.MaxQueueSize,
-			EnableRetransmission:  td.options.EnableRetransmission,
-			RetransmissionBackoff: td.options.RetransmissionBackoff,
-			NetType:               queues.SERVER,
-			Bandwidth:             td.options.ServerBandwidth,
-			BackgroundWorkload:    queueWorkloadMetric,
-			PacketHeader:          ETHERNET_HEADER,
-			EvalTime:              EVAL_TIME,
-			MinPacketSize:         ETHERNET_MIN_FRAME,
-			MaxPacketSize:         ETHERNET_MTU,
-			PropagationSpeed:      1.0,
-			ChannelLength:         float32(serverDelay),
+			InfiniteBuffer:          td.options.InfiniteBuffer,
+			MaxQueue:                td.options.MaxQueueSize,
+			EnableRetransmission:    td.options.EnableRetransmission,
+			RetransmissionBackoff:   td.options.RetransmissionBackoff,
+			NetType:                 queues.SERVER,
+			Bandwidth:               td.options.ServerBandwidth,
+			BackgroundWorkload:      queueWorkloadMetric,
+			PacketHeader:            ETHERNET_HEADER,
+			EvalTime:                EVAL_TIME,
+			MinPacketSize:           ETHERNET_MIN_FRAME,
+			MaxPacketSize:           ETHERNET_MTU,
+			PropagationSpeed:        1.0,
+			ChannelLength:           float32(serverDelay),
+			TransmissionSuccessRate: 1.0,
+			RNG:                     rng,
 		},
 			&serverWorkload,
 			td.resultsWritter,

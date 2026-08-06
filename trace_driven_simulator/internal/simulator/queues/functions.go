@@ -107,6 +107,24 @@ func (evq *EventQueue) processEvents() (int, int, float64, float64, *EventHeap) 
 		case DEPARTURE:
 			evq.CurrentBufferSize--
 
+			// --- TRANSMISSION FAILURE LOGIC ---
+			// Check if we have an RNG configured and success rate is less than 100%
+			if evq.options.RNG != nil && evq.options.TransmissionSuccessRate < 1.0 {
+				// RNG.Float64() returns a value in [0.0, 1.0).
+				// If this value is strictly greater than the Success Rate, the transmission fails.
+				if evq.options.RNG.Float64() > evq.options.TransmissionSuccessRate {
+					// The packet failed to propagate.
+					// Re-schedule it as an ARRIVAL at the current time so it re-enters at the back of the queue.
+					event.Time = evq.currentTime
+					event.Type = ARRIVAL
+					event.Packet.ArrivalTime = evq.currentTime
+
+					heap.Push(evq.events, event)
+					continue // Skip the rest of the DEPARTURE logic to prevent metrics logging & forwarding
+				}
+			}
+			// ----------------------------------
+
 			totalBytes += uint64(event.Packet.Size)
 
 			if event.Packet.Type == LAST {

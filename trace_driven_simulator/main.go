@@ -18,6 +18,7 @@ func main() {
 	traceFile := flag.String("t", "", "Trace file that describe the network workload during the simulation")
 	retransmission := flag.Bool("retransmission", false, "Enable packet retransmission on packet drop")
 	retransmissionBackoff := flag.Float64("retransmission-backoff", 1, "Explicit backoff time (seconds) for packet retransmission. If 0, the RTT is used as backoff time")
+	transmissionSuccessRate := flag.Float64("transmission-success-rate", 1.0, "Probability (p) of successful packet transmission. If less than 1.0, packet loss will be simulated")
 
 	flag.Parse()
 
@@ -30,16 +31,17 @@ func main() {
 	}
 
 	traceDrivenSimulator := simulator.New(&simulator.GlobalOptions{
-		ClientsBandwidth:       uint32(*clientsBandwidthBps),
-		Seed:                   *seed,
-		ServerBandwidth:        uint32(*serverBandwidthBps),
-		MaxNumberOfRounds:      *earlyStopping,
-		BackgroundTrafficLoad:  *backgroundTrafficLoad,
-		BackgroundTrafficModel: simulator.TrafficModel(*backgroundTrafficType),
-		InfiniteBuffer:         *bufferSize == 0,
-		MaxQueueSize:           uint16(*bufferSize),
-		EnableRetransmission:   *retransmission,
-		RetransmissionBackoff:  *retransmissionBackoff,
+		ClientsBandwidth:        uint32(*clientsBandwidthBps),
+		Seed:                    *seed,
+		ServerBandwidth:         uint32(*serverBandwidthBps),
+		MaxNumberOfRounds:       *earlyStopping,
+		BackgroundTrafficLoad:   *backgroundTrafficLoad,
+		BackgroundTrafficModel:  simulator.TrafficModel(*backgroundTrafficType),
+		InfiniteBuffer:          *bufferSize == 0,
+		MaxQueueSize:            uint16(*bufferSize),
+		EnableRetransmission:    *retransmission,
+		RetransmissionBackoff:   *retransmissionBackoff,
+		TransmissionSuccessRate: *transmissionSuccessRate,
 	})
 
 	traceDrivenSimulator.RunSimulation(*traceFile)
