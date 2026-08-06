@@ -21,23 +21,25 @@ func New(options *GlobalOptions, workload *EventHeap, rwritter *writer.Writer) *
 }
 
 func (evq *EventQueue) Start() *Output {
-	numPackets, simTime, totalDelay, outWorkload := evq.processEvents()
+	numMessages, numPackets, simTime, totalDelay, outWorkload := evq.processEvents()
 
 	return &Output{
-		SimTime:    simTime,
-		Delay:      totalDelay,
-		NumPackets: uint32(numPackets),
-		Bandwidth:  evq.options.Bandwidth,
-		Workload:   outWorkload,
+		SimTime:     simTime,
+		Delay:       totalDelay,
+		NumPackets:  uint32(numPackets),
+		NumMessages: uint32(numMessages),
+		Bandwidth:   evq.options.Bandwidth,
+		Workload:    outWorkload,
 	}
 }
 
-func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
+func (evq *EventQueue) processEvents() (int, int, float64, float64, *EventHeap) {
 	if evq.events == nil || evq.events.Len() == 0 {
-		return 0, 0, 0, nil
+		return 0, 0, 0, 0, nil
 	}
 
 	numPackets := evq.events.Len()
+	var numMessages int = 0
 	var totalBytes uint64 = 0
 	var totalDelay float64 = 0
 	var outWorkload *EventHeap = nil
@@ -111,6 +113,7 @@ func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
 				individualDelay := event.Packet.DepartureTime - event.Packet.MSSArrivalTime
 
 				if event.ClientID != 4096 {
+					numMessages++
 					switch evq.options.NetType {
 					case CLIENT:
 						event.ClientQueueDelay = individualDelay
@@ -118,7 +121,7 @@ func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
 						evq.resultsWritter.Write(&writer.WriterRegister{
 							ClientID:           event.ClientID,
 							ComputationTime:    event.ComputationTime,
-							Workload:           uint32(math.Floor((float64(event.MSSSize) * 8 / event.ComputationTime))),
+							Workload:           uint32(math.Floor((float64(event.MSSSize) * 8))),
 							PropagationDelay:   propagationDelay,
 							BackgroundWorkload: evq.options.BackgroundWorkload,
 							ClientQueueDelay:   event.ClientQueueDelay,
@@ -128,7 +131,14 @@ func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
 					}
 				}
 
-				totalDelay += individualDelay
+				switch evq.options.NetType {
+				case CLIENT:
+					totalDelay += individualDelay
+				case SERVER:
+					if event.ClientID != 4096 {
+						totalDelay += individualDelay
+					}
+				}
 			}
 
 			event.Packet.ArrivalTime = event.Packet.DepartureTime + propagationDelay
@@ -145,13 +155,5 @@ func (evq *EventQueue) processEvents() (int, float64, float64, *EventHeap) {
 		}
 	}
 
-	if outWorkload != nil && outWorkload.Len() > 0 && (*outWorkload)[0].ClientID != 4096 {
-		firstEvent := (*outWorkload)[0]
-		for i := 1; i < outWorkload.Len(); i++ {
-			event := (*outWorkload)[i]
-			event.Packet.MSSArrivalTime = firstEvent.Packet.MSSArrivalTime
-		}
-	}
-
-	return numPackets, evq.currentTime, totalDelay, outWorkload
+	return numMessages, numPackets, evq.currentTime, totalDelay, outWorkload
 }

@@ -6,15 +6,18 @@ algorithms=("fedavg" "minibatch")
 nclients_femnist=(3 5 10 20 30 50)
 nclients_shakespeare=(2 3 4 5 8 10 20)
 minibatch_vals=(0.2 0.4 0.5 0.6 0.8 0.9 1)
-flop_val=(250000000)
+flop_val=(500000000)
 
 # Constants
-clients_bwd=150000000 # 1.5 Gbps
+clients_bwd=1500000000 # 1.5 Gbps
 server_bwd=2250000000 # 2.25 Gbps
 bg_workload=0.67
 number_cores=4 # Parallelism level
 p_femnist=0.95 # Portion of the program that can be parallelized
 p_shakespeare=0.4 # Portion of the program that can be parallelized
+# 278 para um erro de 5% no Femnist
+early_stop_femnist=278
+early_stop_shakespeare=10 # Shakepeare always select the same clients after the first round, so we can stop after 10 rounds
 
 # Preprocess vars
 output_dir="trace_driven_simulator/data"
@@ -78,6 +81,13 @@ for flops in "${flop_val[@]}"; do
     for algorithm in "${algorithms[@]}"; do
       echo "Running simulation with algorithm: ${algorithm}..."
 
+      declare -a early_stop
+      if [ "${dataset}" == "femnist" ]; then
+          early_stop=("${early_stop_femnist[@]}")
+      else # shakespeare
+          early_stop=("${early_stop_shakespeare[@]}")
+      fi
+
       if [ "${algorithm}" == "minibatch" ]; then
         if [ "${dataset}" == "femnist" ]; then
             for minibatch_val in "${minibatch_vals[@]}"; do
@@ -86,7 +96,7 @@ for flops in "${flop_val[@]}"; do
               trace_file="trace_driven_simulator/data/homogeneus/${flops}/sys_metrics_${dataset}_${algorithm}_c_20_mb_${minibatch_val}.csv"
               echo "Using trace file: ${trace_file}"
 
-              ${sim_runner} -t "${trace_file}" -clients-b "${clients_bwd}" -server-b "${server_bwd}" -bg-workload "${bg_workload}" > "trace_driven_homogeneus_${dataset}_${algorithm}_c_20_mb_${minibatch_val}_fp_${flops}.csv"
+              ${sim_runner} -t "${trace_file}" -clients-b "${clients_bwd}" -server-b "${server_bwd}" -bg-workload "${bg_workload}" -early-stop "${early_stop}" > "trace_driven_homogeneus_${dataset}_${algorithm}_c_20_mb_${minibatch_val}_fp_${flops}.csv"
               
               mv "metrics_network_${dataset}_minibatch_c_20_mb_${minibatch_val}.csv" "metrics_network_homogeneus_${dataset}_minibatch_c_20_mb_${minibatch_val}_fp_${flops}.csv"
               echo "Minibatch simulation complete. Results saved."
@@ -95,12 +105,12 @@ for flops in "${flop_val[@]}"; do
             for minibatch_val in "${minibatch_vals[@]}"; do
               echo "Running Minibatch simulation with minibatch value: ${minibatch_val}..."
 
-              trace_file="trace_driven_simulator/data/homogeneus/${flops}/sys_metrics_${dataset}_${algorithm}_c_10_mb_${minibatch_val}.csv"
+              trace_file="trace_driven_simulator/data/homogeneus/${flops}/sys_metrics_${dataset}_${algorithm}_c_20_mb_${minibatch_val}.csv"
               echo "Using trace file: ${trace_file}"
 
-              ${sim_runner} -t "${trace_file}" -clients-b "${clients_bwd}" -server-b "${server_bwd}" -bg-workload "${bg_workload}" > "trace_driven_homogeneus_${dataset}_${algorithm}_c_10_mb_${minibatch_val}_fp_${flops}.csv"
+              ${sim_runner} -t "${trace_file}" -clients-b "${clients_bwd}" -server-b "${server_bwd}" -bg-workload "${bg_workload}" -early-stop "${early_stop}" > "trace_driven_homogeneus_${dataset}_${algorithm}_c_20_mb_${minibatch_val}_fp_${flops}.csv"
               
-              mv "metrics_network_${dataset}_minibatch_c_10_mb_${minibatch_val}.csv" "metrics_network_homogeneus_${dataset}_minibatch_c_10_mb_${minibatch_val}_fp_${flops}.csv"
+              mv "metrics_network_${dataset}_minibatch_c_20_mb_${minibatch_val}.csv" "metrics_network_homogeneus_${dataset}_minibatch_c_20_mb_${minibatch_val}_fp_${flops}.csv"
               echo "Minibatch simulation complete. Results saved."
             done
         fi
@@ -119,7 +129,7 @@ for flops in "${flop_val[@]}"; do
           trace_file="trace_driven_simulator/data/homogeneus/${flops}/sys_metrics_${dataset}_${algorithm}_c_${nclient}_e_1.csv"
           echo "Using trace file: ${trace_file}"
 
-          ${sim_runner} -t "${trace_file}" -clients-b "${clients_bwd}" -server-b "${server_bwd}" -bg-workload "${bg_workload}" > "trace_driven_homogeneus_${dataset}_${algorithm}_c_${nclient}_e_1_fp_${flops}.csv"
+          ${sim_runner} -t "${trace_file}" -clients-b "${clients_bwd}" -server-b "${server_bwd}" -bg-workload "${bg_workload}" -early-stop "${early_stop}" > "trace_driven_homogeneus_${dataset}_${algorithm}_c_${nclient}_e_1_fp_${flops}.csv"
 
           mv "metrics_network_${dataset}_fedavg_c_${nclient}_e_1.csv" "metrics_network_homogeneus_${dataset}_fedavg_c_${nclient}_e_1_fp_${flops}.csv"
           echo "FedAvg simulation with ${nclient} clients complete. Results saved."

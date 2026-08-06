@@ -49,11 +49,12 @@ type Event struct {
 }
 
 type Output struct {
-	NumPackets uint32
-	Bandwidth  uint32
-	SimTime    float64
-	Delay      float64
-	Workload   *EventHeap
+	NumMessages uint32
+	NumPackets  uint32
+	Bandwidth   uint32
+	SimTime     float64
+	Delay       float64
+	Workload    *EventHeap
 }
 
 type GlobalOptions struct {
