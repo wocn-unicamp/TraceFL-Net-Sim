@@ -249,3 +249,6 @@ if __name__ == "__main__":
         plot_load_bar(bin_edges_s, mean_mbps, ci_lo, ci_hi,
                       BIN_SIZE_S, label=dist, out_dir=OUT_DIR,
                       round_duration=round_duration)
+
+
+# open in the enviroment 
