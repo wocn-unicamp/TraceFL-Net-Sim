@@ -3,6 +3,11 @@
 # Define the lists
 datasets=("femnist" "shakespeare")
 algorithms=("fedavg" "minibatch")
+# Options: POISSON PARETO CBR MULTI
+bg_models=("MULTI")
+trasmission_sucess_rate=(1.0)
+# Options homogeneous heterogeneous
+scenarios=("heterogeneous")
 nclients_femnist=(3 5 10 20 30 50)
 nclients_shakespeare=(2 3 4 5 8 10 20)
 minibatch_vals=(0.2 0.4 0.5 0.6 0.8 0.9 1)
@@ -15,9 +20,8 @@ bg_workload=0.67
 number_cores=4 # Parallelism level
 p_femnist=0.95 # Portion of the program that can be parallelized
 p_shakespeare=0.4 # Portion of the program that can be parallelized
-# 278 para um erro de 5% no Femnist
 early_stop_femnist=278
-early_stop_shakespeare=10 # Shakepeare always select the same clients after the first round, so we can stop after 10 rounds
+early_stop_shakespeare=-1
 
 # Preprocess vars
 output_dir="trace_driven_simulator/data"
@@ -26,7 +30,7 @@ sim_runner="go run trace_driven_simulator/main.go"
 # Trap for SIGINT (Ctrl+C) and SIGTERM (kill) signals
 cleanup() {
     echo "Caught interrupt signal. Cleaning up..."
-    rm -rf "${output_dir}/homogeneus"
+    rm -rf "${output_dir}"
     exit 1
 }
 
@@ -42,99 +46,135 @@ trap cleanup SIGINT SIGTERM
 # Start logging
 echo "Starting simulation script..."
 
-# Homogeneous scenario
 for flops in "${flop_val[@]}"; do
   echo "Processing with FLOPs: ${flops}..."
 
-  # --- Data Preprocessing ---
-  for dataset in "${datasets[@]}"; do
-    echo "Preprocessing data for dataset: ${dataset}..."
-    
-    # Removed 'local' scope keyword since we are in the main execution block
-    if [ "${dataset}" == "shakespeare" ]; then
-      p="${p_shakespeare}"
-    else
-      p="${p_femnist}"
-    fi
-    
-    speedup=$(amdahl_speedup "${number_cores}" "${p}")
-    
-    # Perform multiplication and convert safely to integer using printf
-    flops_adjusted=$(echo "${flops} * ${speedup}" | bc -l)
-    flops_adjusted=$(printf "%.0f" "${flops_adjusted}")
-    
-    echo "Adjusted FLOPs with ${number_cores} cores: ${flops_adjusted}"
-    echo "Running data processor for dataset ${dataset} with ${flops_adjusted} FLOPs..."
-    python3 trace_driven_simulator/data_processor.py \
-      --sample-dir "traces/sys" \
-      --search-pattern "sys_metrics_*" \
-      --output-dir "${output_dir}/homogeneus/${flops}/" \
-      --clients-flops "${flops_adjusted}"
-  done
+  for scen in "${scenarios[@]}"; do
+    echo "===================================================="
+    echo "Processing Scenario: ${scen}"
+    echo "===================================================="
 
-  # --- Run simulations ---
-  for dataset in "${datasets[@]}"; do
-    echo "----------------------------------------------------"
-    echo "Starting simulations for dataset: ${dataset}"
-    echo "----------------------------------------------------"
+    flops_mode="${scen}"
 
-    for algorithm in "${algorithms[@]}"; do
-      echo "Running simulation with algorithm: ${algorithm}..."
-
-      declare -a early_stop
-      if [ "${dataset}" == "femnist" ]; then
-          early_stop=("${early_stop_femnist[@]}")
-      else # shakespeare
-          early_stop=("${early_stop_shakespeare[@]}")
+    # --- Data Preprocessing ---
+    for dataset in "${datasets[@]}"; do
+      echo "Preprocessing data for dataset: ${dataset} [Scenario: ${scen}]..."
+      
+      if [ "${dataset}" == "shakespeare" ]; then
+        p="${p_shakespeare}"
+      else
+        p="${p_femnist}"
       fi
+      
+      speedup=$(amdahl_speedup "${number_cores}" "${p}")
+      
+      # Perform multiplication and convert safely to integer using printf
+      flops_adjusted=$(echo "${flops} * ${speedup}" | bc -l)
+      flops_adjusted=$(printf "%.0f" "${flops_adjusted}")
 
-      if [ "${algorithm}" == "minibatch" ]; then
+      offset_adjusted=$(echo "300000000 * ${speedup}" | bc -l)
+      offset_adjusted=$(printf "%.0f" "${offset_adjusted}")
+
+      std1_adjusted=$(echo "50000000 * ${speedup}" | bc -l)
+      std1_adjusted=$(printf "%.0f" "${std1_adjusted}")
+
+      std2_adjusted=$(echo "100000000 * ${speedup}" | bc -l)
+      std2_adjusted=$(printf "%.0f" "${std2_adjusted}")
+      
+      echo "Adjusted FLOPs with ${number_cores} cores: ${flops_adjusted}"
+      echo "Running data processor for dataset ${dataset} with ${flops_adjusted} FLOPs (Mode: ${flops_mode})..."
+      
+      # Python invocation passing --flops-mode
+      python3 trace_driven_simulator/data_processor.py \
+        --sample-dir "traces/sys" \
+        --search-pattern "sys_metrics_${dataset}_*" \
+        --output-dir "${output_dir}/${scen}/${flops}/" \
+        --flops-mode "${flops_mode}" \
+        --clients-flops "${flops_adjusted}"\
+        --bimodal-offset "${offset_adjusted}" \
+        --bimodal-std1 "${std1_adjusted}" \
+        --bimodal-std2 "${std2_adjusted}"
+    done
+
+    # --- Run simulations ---
+    for dataset in "${datasets[@]}"; do
+      echo "----------------------------------------------------"
+      echo "Starting simulations for dataset: ${dataset} [Scenario: ${scen}]"
+      echo "----------------------------------------------------"
+
+      for algorithm in "${algorithms[@]}"; do
+        echo "Running simulation with algorithm: ${algorithm}..."
+
         if [ "${dataset}" == "femnist" ]; then
-            for minibatch_val in "${minibatch_vals[@]}"; do
-              echo "Running Minibatch simulation with minibatch value: ${minibatch_val}..."
-
-              trace_file="trace_driven_simulator/data/homogeneus/${flops}/sys_metrics_${dataset}_${algorithm}_c_20_mb_${minibatch_val}.csv"
-              echo "Using trace file: ${trace_file}"
-
-              ${sim_runner} -t "${trace_file}" -clients-b "${clients_bwd}" -server-b "${server_bwd}" -bg-workload "${bg_workload}" -early-stop "${early_stop}" > "trace_driven_homogeneus_${dataset}_${algorithm}_c_20_mb_${minibatch_val}_fp_${flops}.csv"
-              
-              mv "metrics_network_${dataset}_minibatch_c_20_mb_${minibatch_val}.csv" "metrics_network_homogeneus_${dataset}_minibatch_c_20_mb_${minibatch_val}_fp_${flops}.csv"
-              echo "Minibatch simulation complete. Results saved."
-            done
+            early_stop="${early_stop_femnist}"
         else # shakespeare
-            for minibatch_val in "${minibatch_vals[@]}"; do
-              echo "Running Minibatch simulation with minibatch value: ${minibatch_val}..."
-
-              trace_file="trace_driven_simulator/data/homogeneus/${flops}/sys_metrics_${dataset}_${algorithm}_c_20_mb_${minibatch_val}.csv"
-              echo "Using trace file: ${trace_file}"
-
-              ${sim_runner} -t "${trace_file}" -clients-b "${clients_bwd}" -server-b "${server_bwd}" -bg-workload "${bg_workload}" -early-stop "${early_stop}" > "trace_driven_homogeneus_${dataset}_${algorithm}_c_20_mb_${minibatch_val}_fp_${flops}.csv"
-              
-              mv "metrics_network_${dataset}_minibatch_c_20_mb_${minibatch_val}.csv" "metrics_network_homogeneus_${dataset}_minibatch_c_20_mb_${minibatch_val}_fp_${flops}.csv"
-              echo "Minibatch simulation complete. Results saved."
-            done
-        fi
-      else # This block handles FedAvg
-        # Select the correct list of clients based on the dataset
-        declare -a nclients_list
-        if [ "${dataset}" == "femnist" ]; then
-            nclients_list=("${nclients_femnist[@]}")
-        else # shakespeare
-            nclients_list=("${nclients_shakespeare[@]}")
+            early_stop="${early_stop_shakespeare}"
         fi
 
-        for nclient in "${nclients_list[@]}"; do
-          echo "Running FedAvg simulation with ${nclient} clients..."
+        if [ "${algorithm}" == "minibatch" ]; then
+          for minibatch_val in "${minibatch_vals[@]}"; do
+            for bg_model in "${bg_models[@]}"; do
+              for tx_rate in "${trasmission_sucess_rate[@]}"; do
+                bg_model_lower=$(echo "${bg_model}" | tr '[:upper:]' '[:lower:]')
+                echo "Running Minibatch simulation | Scenario: ${scen} | Dataset: ${dataset} | MB: ${minibatch_val} | BG Model: ${bg_model} | Tx Rate: ${tx_rate}..."
 
-          trace_file="trace_driven_simulator/data/homogeneus/${flops}/sys_metrics_${dataset}_${algorithm}_c_${nclient}_e_1.csv"
-          echo "Using trace file: ${trace_file}"
+                trace_file="${output_dir}/${scen}/${flops}/sys_metrics_${dataset}_${algorithm}_c_20_mb_${minibatch_val}.csv"
+                echo "Using trace file: ${trace_file}"
 
-          ${sim_runner} -t "${trace_file}" -clients-b "${clients_bwd}" -server-b "${server_bwd}" -bg-workload "${bg_workload}" -early-stop "${early_stop}" > "trace_driven_homogeneus_${dataset}_${algorithm}_c_${nclient}_e_1_fp_${flops}.csv"
+                ${sim_runner} -t "${trace_file}" \
+                              -clients-b "${clients_bwd}" \
+                              -server-b "${server_bwd}" \
+                              -bg-workload "${bg_workload}" \
+                              -bg-model "${bg_model}" \
+                              -early-stop "${early_stop}" \
+                              -retransmission \
+                              -transmission-success-rate "${tx_rate}" \
+                              > "trace_driven_${scen}_${dataset}_${algorithm}_c_20_mb_${minibatch_val}_bg_${bg_model_lower}_tx_${tx_rate}_fp_${flops}.csv"
+                
+                mv "metrics_network_${dataset}_minibatch_c_20_mb_${minibatch_val}.csv" \
+                   "metrics_network_${scen}_${dataset}_minibatch_c_20_mb_${minibatch_val}_bg_${bg_model_lower}_tx_${tx_rate}_fp_${flops}.csv"
+                
+                echo "Minibatch simulation complete for BG Model ${bg_model} and Tx Rate ${tx_rate}. Results saved."
+              done
+            done
+          done
+        else # This block handles FedAvg
+          # Select the correct list of clients based on the dataset
+          declare -a nclients_list
+          if [ "${dataset}" == "femnist" ]; then
+              nclients_list=("${nclients_femnist[@]}")
+          else # shakespeare
+              nclients_list=("${nclients_shakespeare[@]}")
+          fi
 
-          mv "metrics_network_${dataset}_fedavg_c_${nclient}_e_1.csv" "metrics_network_homogeneus_${dataset}_fedavg_c_${nclient}_e_1_fp_${flops}.csv"
-          echo "FedAvg simulation with ${nclient} clients complete. Results saved."
-        done
-      fi
+          for nclient in "${nclients_list[@]}"; do
+            for bg_model in "${bg_models[@]}"; do
+              for tx_rate in "${trasmission_sucess_rate[@]}"; do
+                bg_model_lower=$(echo "${bg_model}" | tr '[:upper:]' '[:lower:]')
+                echo "Running FedAvg simulation | Scenario: ${scen} | Dataset: ${dataset} | Clients: ${nclient} | BG Model: ${bg_model} | Tx Rate: ${tx_rate}..."
+
+                trace_file="${output_dir}/${scen}/${flops}/sys_metrics_${dataset}_${algorithm}_c_${nclient}_e_1.csv"
+                echo "Using trace file: ${trace_file}"
+
+                ${sim_runner} -t "${trace_file}" \
+                              -clients-b "${clients_bwd}" \
+                              -server-b "${server_bwd}" \
+                              -bg-workload "${bg_workload}" \
+                              -bg-model "${bg_model}" \
+                              -early-stop "${early_stop}" \
+                              -retransmission \
+                              -transmission-success-rate "${tx_rate}" \
+                              > "trace_driven_${scen}_${dataset}_${algorithm}_c_${nclient}_e_1_bg_${bg_model_lower}_tx_${tx_rate}_fp_${flops}.csv"
+
+                mv "metrics_network_${dataset}_fedavg_c_${nclient}_e_1.csv" \
+                   "metrics_network_${scen}_${dataset}_fedavg_c_${nclient}_e_1_bg_${bg_model_lower}_tx_${tx_rate}_fp_${flops}.csv"
+                
+                echo "FedAvg simulation with ${nclient} clients, BG Model ${bg_model}, and Tx Rate ${tx_rate} complete. Results saved."
+              done
+            done
+          done
+        fi
+      done
     done
   done
   echo "Finished processing with FLOPs: ${flops}"

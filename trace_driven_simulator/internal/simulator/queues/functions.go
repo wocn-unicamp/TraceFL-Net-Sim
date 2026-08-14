@@ -67,16 +67,22 @@ func (evq *EventQueue) processEvents() (int, int, float64, float64, *EventHeap) 
 			if !evq.options.InfiniteBuffer && evq.CurrentBufferSize >= int(evq.options.MaxQueue) {
 				if evq.options.EnableRetransmission {
 					// Retrieve Explicit Backoff, or fallback to dynamic network RTO
-					backoff := evq.options.RetransmissionBackoff
-					if backoff <= 0.0 {
+					baseBackoff := evq.options.RetransmissionBackoff
+					if baseBackoff <= 0.0 {
 						// RTO Fallback = Time to transmit packet + Round Trip Time
 						transmitTime := float64(event.Packet.Size) * bandwidthFactor
 						rtt := 2.0 * propagationDelay
-						backoff = transmitTime + rtt
+						baseBackoff = transmitTime + rtt
 					}
 
+					// Apply Exponential Backoff: Base * (2 ^ Attempts)
+					multiplier := math.Pow(2, float64(event.Packet.RetransmissionAttempts))
+					backoff := baseBackoff * multiplier
+
+					// Increment attempt counter for next time
+					event.Packet.RetransmissionAttempts++
+
 					// Schedule the re-transmission in the future relative to NOW.
-					// This allows subsequent packets (like p3, p4) to arrive and be processed.
 					retryTime := evq.currentTime + backoff
 					event.Time = retryTime
 					event.Packet.ArrivalTime = retryTime
@@ -110,20 +116,37 @@ func (evq *EventQueue) processEvents() (int, int, float64, float64, *EventHeap) 
 			// --- TRANSMISSION FAILURE LOGIC ---
 			// Check if we have an RNG configured and success rate is less than 100%
 			if evq.options.RNG != nil && evq.options.TransmissionSuccessRate < 1.0 {
-				// RNG.Float64() returns a value in [0.0, 1.0).
-				// If this value is strictly greater than the Success Rate, the transmission fails.
 				if evq.options.RNG.Float64() > evq.options.TransmissionSuccessRate {
-					// The packet failed to propagate.
-					// Re-schedule it as an ARRIVAL at the current time so it re-enters at the back of the queue.
-					event.Time = evq.currentTime
-					event.Type = ARRIVAL
-					event.Packet.ArrivalTime = evq.currentTime
+					if evq.options.EnableRetransmission {
 
-					heap.Push(evq.events, event)
+						// Generate X ~ U(0.016, 0.064) using the existing RNG instance
+						minBackoff := 0.016
+						maxBackoff := 0.064
+						x := minBackoff + (maxBackoff-minBackoff)*evq.options.RNG.Float64()
+
+						// Calculate backoff using the formula: X * 2^n
+						n := float64(event.Packet.RetransmissionAttempts)
+						backoff := x * math.Pow(2, n)
+
+						// Increment attempt counter for next time
+						event.Packet.RetransmissionAttempts++
+
+						// Re-schedule the event as an ARRIVAL after the backoff timer expires
+						retryTime := evq.currentTime + backoff
+						event.Time = retryTime
+						event.Type = ARRIVAL
+						event.Packet.ArrivalTime = retryTime
+
+						heap.Push(evq.events, event)
+					}
+					// If EnableRetransmission is false, the packet is dropped permanently.
 					continue // Skip the rest of the DEPARTURE logic to prevent metrics logging & forwarding
 				}
 			}
 			// ----------------------------------
+
+			// Successful transmission: reset attempts so the penalty doesn't carry over to the next network hop
+			event.Packet.RetransmissionAttempts = 0
 
 			totalBytes += uint64(event.Packet.Size)
 

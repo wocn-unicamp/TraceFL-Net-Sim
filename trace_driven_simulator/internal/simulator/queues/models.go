@@ -29,14 +29,15 @@ const (
 )
 
 type Packet struct {
-	MSSSize          uint32
-	Size             uint32
-	MSSArrivalTime   float64
-	ArrivalTime      float64
-	StartServiceTime float64
-	DepartureTime    float64
-	Id               uint64
-	Type             PacketType
+	MSSSize                uint32
+	Size                   uint32
+	MSSArrivalTime         float64
+	ArrivalTime            float64
+	StartServiceTime       float64
+	DepartureTime          float64
+	Id                     uint64
+	Type                   PacketType
+	RetransmissionAttempts uint8
 }
 
 type Event struct {

@@ -60,8 +60,8 @@ func (td *TraceDriven) generatePoissonTraffic(
 		return
 	}
 
-	minFrameSize := float64(ETHERNET_MIN_FRAME) // 64 bytes
-	maxFrameSize := 1518.0                      // MTU 1500 + Overhead
+	minFrameSize := float64(ETHERNET_MIN_FRAME)                      // 64 bytes
+	maxFrameSize := float64(ETHERNET_MTU) + float64(ETHERNET_HEADER) // MTU 1500 + Overhead
 	avgPacketBits := ((minFrameSize + maxFrameSize) / 2.0) * 8.0
 
 	meanArrivalRate := targetBps / avgPacketBits
@@ -114,7 +114,7 @@ func (td *TraceDriven) generateCBRTraffic(
 		return
 	}
 
-	const cbrPacketSize uint32 = 70 // Pacote fixo de 70 bytes conforme o artigo
+	const cbrPacketSize uint32 = 70
 	cbrBits := float64(cbrPacketSize * 8)
 	arrivalInterval := cbrBits / targetBps
 
@@ -158,16 +158,24 @@ func (td *TraceDriven) generateParetoTraffic(
 		return
 	}
 
-	minFrameSize := float64(ETHERNET_MIN_FRAME) // 64 bytes
-	maxFrameSize := 1518.0                      // 1518 bytes
+	minFrameSize := float64(ETHERNET_MIN_FRAME)                      // 64 bytes
+	maxFrameSize := float64(ETHERNET_MTU) + float64(ETHERNET_HEADER) // 1518 bytes
 	avgPacketBits := ((minFrameSize + maxFrameSize) / 2.0) * 8.0
 
 	meanArrivalRate := targetBps / avgPacketBits
 	meanArrivalInterval := 1.0 / meanArrivalRate
 
-	alpha := ALPHA_BG // 1.4 (Hurst H = 0.8)
-	xMin := meanArrivalInterval * ((alpha - 1.0) / alpha)
-	xMax := xMin * 1000.0 // Limite superior para a Bounded Pareto
+	alpha := ALPHA_BG // Pareto shape parameter
+	ratio := RATIO_BG
+
+	// Calibrate xMin using the mean of the bounded Pareto distribution so that
+	// the average offered traffic rate matches targetBps.
+	meanFactor := (alpha / (alpha - 1.0)) *
+		(1.0 - math.Pow(ratio, 1.0-alpha)) /
+		(1.0 - math.Pow(ratio, -alpha))
+
+	xMin := meanArrivalInterval / meanFactor
+	xMax := xMin * ratio
 
 	minAlpha := math.Pow(xMin, -alpha)
 	maxAlpha := math.Pow(xMax, -alpha)
@@ -187,7 +195,8 @@ func (td *TraceDriven) generateParetoTraffic(
 			break
 		}
 
-		mssSize := uint32(minFrameSize) + rng.Uint32()%uint32(maxFrameSize-minFrameSize+1)
+		frameRange := uint32(maxFrameSize - minFrameSize + 1)
+		mssSize := uint32(minFrameSize) + rng.Uint32N(frameRange)
 
 		packet := &queues.Packet{
 			MSSSize:        mssSize,
@@ -300,7 +309,7 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 			MaxQueue:                td.options.MaxQueueSize,
 			EnableRetransmission:    td.options.EnableRetransmission,
 			RetransmissionBackoff:   td.options.RetransmissionBackoff,
-			TransmissionSuccessRate: td.options.TransmissionSuccessRate,
+			TransmissionSuccessRate: 1.0,
 			RNG:                     rng,
 		}
 
@@ -507,7 +516,7 @@ func (td *TraceDriven) readTrace(traceFilename string) {
 			MaxPacketSize:           ETHERNET_MTU,
 			PropagationSpeed:        1.0,
 			ChannelLength:           float32(serverDelay),
-			TransmissionSuccessRate: 1.0,
+			TransmissionSuccessRate: td.options.TransmissionSuccessRate,
 			RNG:                     rng,
 		},
 			&serverWorkload,
