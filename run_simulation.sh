@@ -12,6 +12,7 @@ nclients_femnist=(3 5 10 20 30 50)
 nclients_shakespeare=(2 3 4 5 8 10 20)
 minibatch_vals=(0.2 0.4 0.5 0.6 0.8 0.9 1)
 flop_val=(500000000)
+seeds=(42 1337 2026 8888 9999) # Five distinct seeds for statistical reliability
 
 # Constants
 clients_bwd=1500000000 # 1.5 Gbps
@@ -115,26 +116,37 @@ for flops in "${flop_val[@]}"; do
           for minibatch_val in "${minibatch_vals[@]}"; do
             for bg_model in "${bg_models[@]}"; do
               for tx_rate in "${trasmission_sucess_rate[@]}"; do
-                bg_model_lower=$(echo "${bg_model}" | tr '[:upper:]' '[:lower:]')
-                echo "Running Minibatch simulation | Scenario: ${scen} | Dataset: ${dataset} | MB: ${minibatch_val} | BG Model: ${bg_model} | Tx Rate: ${tx_rate}..."
+                for seed in "${seeds[@]}"; do
+                  bg_model_lower=$(echo "${bg_model}" | tr '[:upper:]' '[:lower:]')
+                  
+                  target_metrics="metrics_network_${scen}_${dataset}_minibatch_c_20_mb_${minibatch_val}_bg_${bg_model_lower}_tx_${tx_rate}_fp_${flops}_seed_${seed}.csv"
+                  
+                  if [ -f "${target_metrics}" ]; then
+                    echo "=> Skipping experiment (Already exists): Dataset: ${dataset} | MB: ${minibatch_val} | BG Model: ${bg_model} | Tx Rate: ${tx_rate} | Seed: ${seed}"
+                    continue
+                  fi
 
-                trace_file="${output_dir}/${scen}/${flops}/sys_metrics_${dataset}_${algorithm}_c_20_mb_${minibatch_val}.csv"
-                echo "Using trace file: ${trace_file}"
+                  echo "Running Minibatch simulation | Scenario: ${scen} | Dataset: ${dataset} | MB: ${minibatch_val} | BG Model: ${bg_model} | Tx Rate: ${tx_rate} | Seed: ${seed}..."
 
-                ${sim_runner} -t "${trace_file}" \
-                              -clients-b "${clients_bwd}" \
-                              -server-b "${server_bwd}" \
-                              -bg-workload "${bg_workload}" \
-                              -bg-model "${bg_model}" \
-                              -early-stop "${early_stop}" \
-                              -retransmission \
-                              -transmission-success-rate "${tx_rate}" \
-                              > "trace_driven_${scen}_${dataset}_${algorithm}_c_20_mb_${minibatch_val}_bg_${bg_model_lower}_tx_${tx_rate}_fp_${flops}.csv"
-                
-                mv "metrics_network_${dataset}_minibatch_c_20_mb_${minibatch_val}.csv" \
-                   "metrics_network_${scen}_${dataset}_minibatch_c_20_mb_${minibatch_val}_bg_${bg_model_lower}_tx_${tx_rate}_fp_${flops}.csv"
-                
-                echo "Minibatch simulation complete for BG Model ${bg_model} and Tx Rate ${tx_rate}. Results saved."
+                  trace_file="${output_dir}/${scen}/${flops}/sys_metrics_${dataset}_${algorithm}_c_20_mb_${minibatch_val}.csv"
+                  echo "Using trace file: ${trace_file}"
+
+                  ${sim_runner} -t "${trace_file}" \
+                                -clients-b "${clients_bwd}" \
+                                -server-b "${server_bwd}" \
+                                -bg-workload "${bg_workload}" \
+                                -bg-model "${bg_model}" \
+                                -early-stop "${early_stop}" \
+                                -retransmission \
+                                -transmission-success-rate "${tx_rate}" \
+                                -seed "${seed}" \
+                                > "trace_driven_${scen}_${dataset}_${algorithm}_c_20_mb_${minibatch_val}_bg_${bg_model_lower}_tx_${tx_rate}_fp_${flops}_seed_${seed}.csv"
+                  
+                  mv "metrics_network_${dataset}_minibatch_c_20_mb_${minibatch_val}.csv" \
+                     "${target_metrics}"
+                  
+                  echo "Minibatch simulation complete for BG Model ${bg_model}, Tx Rate ${tx_rate}, Seed ${seed}. Results saved."
+                done
               done
             done
           done
@@ -150,26 +162,37 @@ for flops in "${flop_val[@]}"; do
           for nclient in "${nclients_list[@]}"; do
             for bg_model in "${bg_models[@]}"; do
               for tx_rate in "${trasmission_sucess_rate[@]}"; do
-                bg_model_lower=$(echo "${bg_model}" | tr '[:upper:]' '[:lower:]')
-                echo "Running FedAvg simulation | Scenario: ${scen} | Dataset: ${dataset} | Clients: ${nclient} | BG Model: ${bg_model} | Tx Rate: ${tx_rate}..."
+                for seed in "${seeds[@]}"; do
+                  bg_model_lower=$(echo "${bg_model}" | tr '[:upper:]' '[:lower:]')
+                  
+                  target_metrics="metrics_network_${scen}_${dataset}_fedavg_c_${nclient}_e_1_bg_${bg_model_lower}_tx_${tx_rate}_fp_${flops}_seed_${seed}.csv"
 
-                trace_file="${output_dir}/${scen}/${flops}/sys_metrics_${dataset}_${algorithm}_c_${nclient}_e_1.csv"
-                echo "Using trace file: ${trace_file}"
+                  if [ -f "${target_metrics}" ]; then
+                    echo "=> Skipping experiment (Already exists): Dataset: ${dataset} | Clients: ${nclient} | BG Model: ${bg_model} | Tx Rate: ${tx_rate} | Seed: ${seed}"
+                    continue
+                  fi
 
-                ${sim_runner} -t "${trace_file}" \
-                              -clients-b "${clients_bwd}" \
-                              -server-b "${server_bwd}" \
-                              -bg-workload "${bg_workload}" \
-                              -bg-model "${bg_model}" \
-                              -early-stop "${early_stop}" \
-                              -retransmission \
-                              -transmission-success-rate "${tx_rate}" \
-                              > "trace_driven_${scen}_${dataset}_${algorithm}_c_${nclient}_e_1_bg_${bg_model_lower}_tx_${tx_rate}_fp_${flops}.csv"
+                  echo "Running FedAvg simulation | Scenario: ${scen} | Dataset: ${dataset} | Clients: ${nclient} | BG Model: ${bg_model} | Tx Rate: ${tx_rate} | Seed: ${seed}..."
 
-                mv "metrics_network_${dataset}_fedavg_c_${nclient}_e_1.csv" \
-                   "metrics_network_${scen}_${dataset}_fedavg_c_${nclient}_e_1_bg_${bg_model_lower}_tx_${tx_rate}_fp_${flops}.csv"
-                
-                echo "FedAvg simulation with ${nclient} clients, BG Model ${bg_model}, and Tx Rate ${tx_rate} complete. Results saved."
+                  trace_file="${output_dir}/${scen}/${flops}/sys_metrics_${dataset}_${algorithm}_c_${nclient}_e_1.csv"
+                  echo "Using trace file: ${trace_file}"
+
+                  ${sim_runner} -t "${trace_file}" \
+                                -clients-b "${clients_bwd}" \
+                                -server-b "${server_bwd}" \
+                                -bg-workload "${bg_workload}" \
+                                -bg-model "${bg_model}" \
+                                -early-stop "${early_stop}" \
+                                -retransmission \
+                                -transmission-success-rate "${tx_rate}" \
+                                -seed "${seed}" \
+                                > "trace_driven_${scen}_${dataset}_${algorithm}_c_${nclient}_e_1_bg_${bg_model_lower}_tx_${tx_rate}_fp_${flops}_seed_${seed}.csv"
+
+                  mv "metrics_network_${dataset}_fedavg_c_${nclient}_e_1.csv" \
+                     "${target_metrics}"
+                  
+                  echo "FedAvg simulation with ${nclient} clients, BG Model ${bg_model}, Tx Rate ${tx_rate}, Seed ${seed} complete. Results saved."
+                done
               done
             done
           done
