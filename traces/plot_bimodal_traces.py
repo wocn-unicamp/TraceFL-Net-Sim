@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 
 
-SYS_DIR = Path("sys")
-GROUPED_DIR = Path("figures/grouped_cdfs")
+BIMODAL_DIR = Path("sys_bimodal")
+GROUPED_DIR = Path("figures/bimodal_cdfs")
 
 SAVE_PDF = False
 
@@ -15,12 +15,14 @@ GROUPED_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def read_cdf(csv_file):
-    flops = pd.read_csv(csv_file, header=None, usecols=[7]).iloc[:, 0]
-    flops = pd.to_numeric(flops, errors="coerce").dropna().to_numpy()
-    flops = np.sort(flops / 1e9)
+    # columna 9 = time (segundos). Las 8 primeras son las originales,
+    # la 8 es capacity_gflops.
+    times = pd.read_csv(csv_file, header=None, usecols=[9]).iloc[:, 0]
+    times = pd.to_numeric(times, errors="coerce").dropna().to_numpy()
+    times = np.sort(times)
 
-    cdf = np.arange(1, len(flops) + 1) / len(flops) * 100
-    return flops, cdf
+    cdf = np.arange(1, len(times) + 1) / len(times) * 100
+    return times, cdf
 
 
 def file_info(csv_file):
@@ -48,10 +50,10 @@ def save_figure(output):
 groups = {}
 
 
-for csv_file in sorted(SYS_DIR.glob("sys_metrics_*.csv")):
-    flops, cdf = read_cdf(csv_file)
+for csv_file in sorted(BIMODAL_DIR.glob("sys_metrics_*.csv")):
+    times, cdf = read_cdf(csv_file)
 
-    if len(flops) == 0:
+    if len(times) == 0:
         continue
 
     dataset, algorithm, clients, minibatch = file_info(csv_file)
@@ -66,7 +68,7 @@ for csv_file in sorted(SYS_DIR.glob("sys_metrics_*.csv")):
         group_key = (dataset, algorithm, clients)
         label = f"mb={minibatch}"
 
-    groups.setdefault(group_key, []).append((label, flops, cdf))
+    groups.setdefault(group_key, []).append((label, times, cdf))
 
 
 # Grouped figures.
@@ -76,10 +78,10 @@ for group_key, curves in groups.items():
 
     plt.figure(figsize=(6, 4))
 
-    for label, flops, cdf in curves:
-        plt.step(flops, cdf, where="post", label=label)
+    for label, times, cdf in curves:
+        plt.step(times, cdf, where="post", label=label)
 
-    plt.xlabel("Computational demand (GFLOPs)")
+    plt.xlabel("Computation time (s)")
     plt.ylabel("Clients per training round (%)")
     plt.ylim(0, 100)
     plt.grid(True, linestyle="--", alpha=0.4)
@@ -87,10 +89,10 @@ for group_key, curves in groups.items():
     plt.tight_layout()
 
     if algorithm == "fedavg":
-        output_name = f"cdf_{dataset}_fedavg"
+        output_name = f"cdf_time_{dataset}_fedavg"
     else:
         clients = group_key[2]
-        output_name = f"cdf_{dataset}_minibatch_c_{clients}"
+        output_name = f"cdf_time_{dataset}_minibatch_c_{clients}"
 
     save_figure(GROUPED_DIR / output_name)
 
