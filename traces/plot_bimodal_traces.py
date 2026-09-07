@@ -6,8 +6,13 @@ import numpy as np
 import pandas as pd
 
 
-BIMODAL_DIR = Path("sys_bimodal")
-GROUPED_DIR = Path("figures/bimodal_cdfs")
+# BIMODAL_DIR = Path("sys_bimodal")
+# GROUPED_DIR = Path("figures/bimodal_cdfs")
+
+BIMODAL_DIR = Path("sys_bimodal_amdahl")
+GROUPED_DIR = Path("figures/bimodal_cdfs_amdahl")
+
+
 
 SAVE_PDF = False
 
