@@ -55,7 +55,7 @@ def end_time_at_or_before_round(end_times: pd.Series, target_round: int) -> floa
 # Plot 1: 4 barras por época (65/70/74 + 1000 rounds) em minutos
 # ============================================================
 def plot_training_time_bars(epochs, t65_sec, t70_sec, t74_sec, t1000_sec, scenario=""):
-    plt.figure(figsize=(11, 6))
+    plt.figure(figsize=(7.5, 5))
 
     x = np.arange(len(list(epochs)))
     width = 0.20
@@ -71,7 +71,9 @@ def plot_training_time_bars(epochs, t65_sec, t70_sec, t74_sec, t1000_sec, scenar
     bars74   = plt.bar(x + 0.5 * width, t74_m,   width, label="Accuracy 74%")
     # bars1000 = plt.bar(x + 1.5 * width, t1000_m, width, label="1000 Rounds")
 
-    plt.title("Total computing time to reach a target accuracy / 1000 Rounds in a" + f" ({scenario.capitalize()} Scenario)")
+    # plt.title("Total computing time to reach a target accuracy / 1000 Rounds in a" + f" ({scenario.capitalize()} Scenario)")
+    plt.title("Total computing time to reach a target accuracy")
+
     plt.xlabel("Epochs")
     plt.ylabel("Time (min)")
     plt.ylim(1, 65)

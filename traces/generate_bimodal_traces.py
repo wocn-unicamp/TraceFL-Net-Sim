@@ -33,6 +33,16 @@ import numpy as np
 import pandas as pd
 
 
+plt.rcParams.update({
+    "font.size": 14,
+    "axes.labelsize": 16,
+    "axes.titlesize": 16,
+    "xtick.labelsize": 14,
+    "ytick.labelsize": 14,
+    "legend.fontsize": 13
+})
+
+
 # ============================ CONFIGURACION ============================
 
 AMDAHL = True          # <-- la flag: True aplica la ley de Amdahl
@@ -139,7 +149,7 @@ def graficar(capacidades, speedup, salida, titulo):
     ancho = bins[1] - bins[0]
     x = np.linspace(minimo, maximo, 500)
 
-    plt.figure(figsize=(7, 4))
+    plt.figure(figsize=(7, 4.5))
     for modo, media, std, color in [
             (1, MODE1_MEAN * speedup, MODE1_STD * speedup, "tab:blue"),
             (2, MODE2_MEAN * speedup, MODE2_STD * speedup, "tab:orange")]:
@@ -205,7 +215,7 @@ def main():
         capacidades.to_csv(SALIDA / f"capacities_{clave}.csv", index=False,
                            float_format="%.6f")
 
-        titulo = f"{clave}: {len(capacidades)} clients"
+        titulo = f"{len(capacidades)} clients"
         if AMDAHL:
             titulo += f"  |  Amdahl p={p_dataset}, {CORES} cores, speedup={speedup:.3f}"
         graficar(capacidades, speedup, graficas / f"capacity_{clave}.png", titulo)
