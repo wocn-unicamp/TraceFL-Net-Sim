@@ -6,7 +6,8 @@ from matplotlib.ticker import MultipleLocator
 
 # ================================ Config =====================================
 
-folder_path = "../results/stat/"
+# folder_path = "../results/stat/"
+folder_path = "../results_backup/stat/"
 
 file_bases_1 = [
     "stat_metrics_fedavg_c_50_e_1",
@@ -17,14 +18,24 @@ file_bases_1 = [
     "stat_metrics_fedavg_c_3_e_1",
 ]
 
+# file_bases_2 = [
+#     "stat_metrics_minibatch_c_30_mb_0.9",
+#     "stat_metrics_minibatch_c_30_mb_0.8",
+#     "stat_metrics_minibatch_c_30_mb_0.6",
+#     "stat_metrics_minibatch_c_30_mb_0.5",
+#     "stat_metrics_minibatch_c_30_mb_0.4",
+#     "stat_metrics_minibatch_c_30_mb_0.2",
+#     #  "stat_metrics_minibatch_c_30_mb_0.1",
+# ]
+
 file_bases_2 = [
-    "stat_metrics_minibatch_c_30_mb_0.9",
-    "stat_metrics_minibatch_c_30_mb_0.8",
-    "stat_metrics_minibatch_c_30_mb_0.6",
-    "stat_metrics_minibatch_c_30_mb_0.5",
-    "stat_metrics_minibatch_c_30_mb_0.4",
-    "stat_metrics_minibatch_c_30_mb_0.2",
-    #  "stat_metrics_minibatch_c_30_mb_0.1",
+    # "stat_metrics_minibatch_c_20_mb_1",
+    "stat_metrics_minibatch_c_20_mb_0.9",
+    "stat_metrics_minibatch_c_20_mb_0.8",
+    "stat_metrics_minibatch_c_20_mb_0.6",
+    "stat_metrics_minibatch_c_20_mb_0.5",
+    "stat_metrics_minibatch_c_20_mb_0.4",
+    "stat_metrics_minibatch_c_20_mb_0.2",
 ]
 
 # file_bases_2 = [
@@ -54,6 +65,16 @@ file_bases_4 = [
     "stat_metrics_shakespeare_minibatch_c_10_mb_0.2"
 ]
 
+# file_bases_4 = [
+#     "stat_metrics_shakespeare_minibatch_c_20_mb_0.9",
+#     "stat_metrics_shakespeare_minibatch_c_20_mb_0.8",
+#     "stat_metrics_shakespeare_minibatch_c_20_mb_0.6",
+#     "stat_metrics_shakespeare_minibatch_c_20_mb_0.5",
+#     "stat_metrics_shakespeare_minibatch_c_20_mb_0.4",
+#     "stat_metrics_shakespeare_minibatch_c_20_mb_0.2"
+# ]
+
+
 file_groups = [
     ("fedavg_clients", file_bases_1),
     ("minibatch_p", file_bases_2),
@@ -63,8 +84,8 @@ file_groups = [
 
 # Límites por grupo (solo accuracy)
 limits_by_group = {
-    "fedavg_clients":      {"acc_test": {"x": (50, 1000), "y": (10, 80)}},
-    "minibatch_p":         {"acc_test": {"x": (50, 1000), "y": (10, 80)}},
+    "fedavg_clients":      {"acc_test": {"x": (20, 500), "y": (5, 80)}},
+    "minibatch_p":         {"acc_test": {"x": (20, 500), "y": (5, 80)}},
     "shakespeare_fedavg":  {"acc_test": {"x": (0, 50),    "y": (15, 55)}},
     "shakespeare_minibatch":{"acc_test":{"x": (0, 50),    "y": (15, 55)}},
 }
