@@ -19,18 +19,26 @@ Para cada cliente ``i`` y cada round ``r``::
 
 ``arrival`` es el instante en que el modelo local de ``i`` llega al servidor
 central. El servidor sólo cierra el round cuando recibe la ÚLTIMA
-actualización, así que la duración del round la fija el cliente más lento
-(*straggler*)::
+actualización, así que la duración del round la fija el cliente más lento::
 
-    s(r)              = argmax_i  arrival(i, r)
-    round_duration(r) = arrival(s(r), r)
-                      = computing(s(r), r) + communication(s(r), r)
+    round_duration(r) = max_i arrival(i, r)
+
+La duración se desglosa tomando como referencia una red ideal (retardos
+cero): con ella el round terminaría cuando acaba de computar el cliente más
+lento, y todo lo que excede de ahí es el sobrecoste de la red::
+
+    computing(r)     = max_i computing(i, r)              # round con red ideal
+    communication(r) = round_duration(r) - computing(r)   # sobrecoste de red (>= 0)
+
+Así ``computing`` sólo depende de las cargas de trabajo (no de la red) y
+``communication`` recoge exactamente el tiempo extra que añade la red
+(colas, propagación, retransmisiones).
 
 El tiempo total de entrenamiento y su desglose son la suma sobre rounds::
 
     total         = sum_r round_duration(r)
-    computing     = sum_r computing(s(r), r)
-    communication = sum_r communication(s(r), r)
+    computing     = sum_r computing(r)
+    communication = sum_r communication(r)
 
 de modo que ``computing + communication == total``: la barra apilada suma
 exactamente el tiempo total.
@@ -153,7 +161,7 @@ DATASETS = {
 TX_FIXED = "1.0"                              # probabilidad de transmisión
 EPOCHS = 1                                    # épocas locales (FedAvg, e_1)
 MB_CLIENTS = 20                               # nº de clientes en minibatch
-TX_CLIENTS = {"femnist": 30, "shakespeare": 20}  # nº de clientes al variar tx
+TX_CLIENTS = {"femnist": 20, "shakespeare": 10}  # nº de clientes al variar tx
 FP = "500000000"                              # sufijo fp_ de los ficheros
 
 
@@ -170,6 +178,17 @@ def minibatch_file(clients=MB_CLIENTS, mb="{value}", tx=TX_FIXED) -> str:
             f"_bg_multi_tx_{tx}_fp_{FP}_seed_{{seed}}.csv")
 
 
+# Probabilidades de transmisión del experimento "tx", en el orden del eje X
+# (Frame Loss Rate creciente: 0 %, 5 %, 10 %, 15 %, 20 %).
+TX_VALUES = ["1.0", "0.95", "0.9", "0.85", "0.8"]
+
+
+def frame_loss_pct(tx) -> str:
+    """Frame Loss Rate en % a partir de la probabilidad de transmisión:
+    100 · (1 - tx), sin decimales ("1.0" -> "0", "0.95" -> "5")."""
+    return f"{round((1.0 - float(tx)) * 100):d}"
+
+
 # Experimentos (cada uno es un panel). Definen:
 #   * xlabel   : etiqueta del eje X del panel (cadena común o {dataset: cadena}).
 #   * short    : (opcional) nombre corto del parámetro para la tabla y los CSV.
@@ -183,6 +202,9 @@ def minibatch_file(clients=MB_CLIENTS, mb="{value}", tx=TX_FIXED) -> str:
 #                y no "1.0" para el minibatch de FEMNIST).
 #   * overrides: (opcional) {dataset: {valor: plantilla}} para tomar un valor
 #                concreto de OTRO fichero.
+#   * ticklabels: (opcional) rótulos del eje X (lista común o {dataset: lista}),
+#                en el mismo orden que `values`, cuando lo que se rotula no es
+#                el valor del fichero (p. ej. Frame Loss Rate en vez de tx).
 EXPERIMENTS = {
     # --- FedAvg (E épocas, tx fijo), variando el nº de clientes -------------
     "clients": {
@@ -215,17 +237,21 @@ EXPERIMENTS = {
         # "overrides": {"shakespeare": {"1": fedavg_file(clients=MB_CLIENTS)}},
     },
     # --- FedAvg (C clientes, E épocas), variando la probabilidad tx ---------
+    # El eje X se rotula como Frame Loss Rate (%) = 100 · (1 - tx), de menor a
+    # mayor pérdida. `values` sigue siendo tx (es lo que va en el nombre del
+    # fichero, en los CSV y en la tabla); `ticklabels` es lo que se dibuja.
     "tx": {
-        "xlabel": "Probability of successful\nframe transmission",
+        "xlabel": "Frame Loss Rate (%)",
         "short": "tx",
         "fixed": {"C": TX_CLIENTS, "E": EPOCHS},
         "filename": {
             ds: fedavg_file(clients=c, tx="{value}") for ds, c in TX_CLIENTS.items()
         },
         "values": {
-            "femnist": ["0.8", "0.85", "0.9", "0.95", "1.0"],
-            "shakespeare": ["0.8", "0.85", "0.9", "0.95", "1.0"],
+            "femnist": TX_VALUES,
+            "shakespeare": TX_VALUES,
         },
+        "ticklabels": [frame_loss_pct(v) for v in TX_VALUES],
     },
 }
 
@@ -308,27 +334,27 @@ def round_breakdown(df: pd.DataFrame) -> pd.DataFrame:
              modelo local llega al servidor central:
                  arrival = computation-time
                          + client-queue-delay + propagation-delay + station-queue-delay
-    Paso 2 - El round termina cuando llega el ÚLTIMO cliente. Se localiza esa
-             fila (el straggler del round, argmax de `arrival`) y la duración
-             del round es SU `arrival`, que se desglosa en:
-                 computing     = computation-time del straggler
-                 communication = suma de retardos de red del straggler
-             Así, computing + communication == duración del round.
+    Paso 2 - El round termina cuando llega el ÚLTIMO cliente:
+                 total = max_i arrival
+             Se desglosa respecto a una red ideal (retardos cero), con la que
+             el round terminaría al acabar de computar el cliente más lento:
+                 computing     = max_i computation-time     (round con red ideal)
+                 communication = total - computing          (sobrecoste de red, >= 0)
+             Así, computing + communication == duración del round, computing
+             no depende de la red y communication es el tiempo extra que
+             añade la red (colas, propagación, retransmisiones).
 
     Devuelve un DataFrame indexado por round_number (ordenado) con las
     columnas computing, communication y total.
     """
     arrival = df[ARRIVAL_COLUMNS].sum(axis=1)                        # Paso 1
-    straggler_idx = arrival.groupby(df["round_number"]).idxmax()     # Paso 2
-    straggler = df.loc[straggler_idx.to_numpy()]
-
+    grp = df.assign(arrival=arrival).groupby("round_number")        # Paso 2
     out = pd.DataFrame({
-        "round_number": straggler["round_number"].to_numpy(),
-        "computing": straggler[COMPUTING_COLUMN].to_numpy(),
-        "communication": straggler[NETWORK_COLUMNS].sum(axis=1).to_numpy(),
-    }).set_index("round_number").sort_index()
-    out["total"] = out["computing"] + out["communication"]
-    return out
+        "total": grp["arrival"].max(),
+        "computing": grp[COMPUTING_COLUMN].max(),
+    }).sort_index()
+    out["communication"] = out["total"] - out["computing"]
+    return out[["computing", "communication", "total"]]
 
 
 def total_training_time(df: pd.DataFrame, max_rounds: int | None = None,
@@ -568,8 +594,14 @@ def _draw_panel(ax, exp_name: str, dataset: str, summary: pd.DataFrame) -> None:
                         textcoords="offset points", ha="center", va="bottom",
                         fontsize=FONT_SIZE - 2)
 
+    # Rótulos del eje X: `ticklabels` si el experimento los define, si no `values`
+    ticklabels = exp.get("ticklabels")
+    if ticklabels is None:
+        ticklabels = values
+    else:
+        ticklabels = [str(t) for t in _per_dataset(ticklabels, dataset)]
     ax.set_xticks(x)
-    ax.set_xticklabels(values)
+    ax.set_xticklabels(ticklabels)
     ax.set_xlabel(_per_dataset(exp["xlabel"], dataset))
     if SHOW_FIXED_PARAMS:
         ax.set_title(fixed_label(exp_name, dataset), fontsize=FONT_SIZE - 1)
