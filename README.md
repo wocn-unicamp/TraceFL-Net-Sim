@@ -1,298 +1,222 @@
-<!-- # Federated-Learning-Network-Workload
-
-Project to Evaluate the Impact of Federated Learning Applications on the Network Workload
-
-## Environment Preparation
-
-### Install virtualenv package
-
-    $ sudo apt install python3-virtualenv
-
-### Create Virtual Environment
-
-    $ virtualenv -p <python-bin> venv
-    
-* Use ``which`` command to find python3.6 source
-
-### Activate Virtual Environment
-
-    $ source venv/bin/activate
-
-### Install Packages imside Virtual Environment
-
-    $ pip install -r requirements
-
-### -- Desactivate Virtual Environment -- ###
-
-    $ deactivate -->
-
-
 # TraceFL-Net-Sim
 
-Avaliação do impacto de aplicações de **Federated Learning (FL)** no **tráfego de rede** com realimentação de métricas entre o **LEAF** e um **simulador de rede**.  
-O pipeline implementa **FL síncrono** (as rodadas avançam somente após todos os clientes selecionados finalizarem), permitindo estudar a interação entre:
+**TraceFL-Net-Sim** is a trace-driven discrete-event simulator for studying the interaction between Federated Learning (FL) traffic and background traffic in bandwidth-constrained access networks.
 
-- custo computacional por cliente (FLOPs),
-- geração e envio de atualizações de modelo,
-- **atrasos, vazão e perdas** na rede,
-- e o **desempenho final do modelo**.
+This repository accompanies the manuscript:
 
-<!-- **Figura do pipeline**: veja `docs/pipeline.png` (estágios 1–6). -->
+> **Probabilistic Modeling and Performance Analysis of Federated Learning Traffic over Access Networks**
 
----
+## Overview
 
-## Sumário
-- [Arquitetura & Metodologia](#arquitetura--metodologia)
-- [Requisitos](#requisitos)
-- [Instalação e Ambiente](#instalação-e-ambiente)
-- [Estrutura do Repositório](#estrutura-do-repositório)
-- [Configuração](#configuração)
-- [Como Executar (Quickstart)](#como-executar-quickstart)
-- [Métricas & Saídas](#métricas--saídas)
-- [Reprodutibilidade](#reprodutibilidade)
-- [Boas Práticas](#boas-práticas)
-- [Licença & Citação](#licença--citação)
+TraceFL-Net-Sim combines FL workload traces with a discrete-event network simulator implemented in Go. Per-client computational demand is converted into local computation times, which determine when model updates become available for transmission. The resulting traffic is then evaluated under configurable access-network conditions and coexisting background traffic.
 
----
+The evaluated FL workflow is synchronous and round-based: a round is completed only after the model updates from all participating clients reach the central server.
 
-## Arquitetura & Metodologia
+## Main Features
 
-**Estágio 1 — Definição do cenário (LEAF, FL síncrono)**  
-- Escolha do **dataset** e **modelo** no LEAF.  
-- Definição de **hiperparâmetros** (tamanho do lote, épocas locais, fração de clientes por rodada, etc.).  
-- **Tempo de sincronização** habilitado (modo **síncrono**): o servidor só inicia a próxima rodada após **receber todas** as atualizações dos clientes selecionados.
+- Trace-driven FL traffic simulation
+- Per-client and per-round computational-demand traces
+- Heterogeneous client processing capacities
+- Amdahl-based processing-capacity scaling
+- Poisson, Pareto, and CBR background traffic
+- Ethernet frame-level discrete-event simulation
+- FCFS queueing
+- Configurable link capacities and propagation delays
+- Probabilistic frame loss and retransmission
+- Multiple independent simulation seeds
+- Per-client, per-round, and queueing metrics
 
-**Estágio 2 — Execução no LEAF & coleta de métricas do sistema**  
-- Rodadas de FL no LEAF para **caracterizar workload**: contabilizamos **FLOPs** (ou tempo CPU) por cliente/rodada, tamanho das mensagens (upload/download) e número de amostras processadas.  
-- Saída: `leaf_metrics.csv`.
+## Repository Structure
 
-**Estágio 3 — Conversão de FLOPs em tráfego (script Python)**  
-- Um **script** transforma **custo computacional (FLOPs)** e **tamanho de atualização** em **tempos de chegada de pacotes** e **taxas de envio**, considerando codecs/compressão (se houver) e MTU.  
-- Saída: `traffic_trace.csv` (timestamps, fluxo por cliente, tamanho dos pacotes).
-
-**Estágio 4 — Introdução do tráfego no simulador de rede**  
-- O **simulador de rede** recebe `traffic_trace.csv` e reproduz o tráfego FL.  
-- Cenários: topologia, capacidade de enlace, filas, latências, perdas e políticas de escalonamento.
-
-**Estágio 5 — Coleta de métricas de rede**  
-- Coletamos **atraso**, **jitter**, **vazão** e **perdas** **por cliente e por rodada**.  
-- Saída: `network_trace.csv`.
-
-**Estágio 6 — Realimentação no LEAF & métricas do modelo**  
-- O **trace de atraso** é injetado no **agendador síncrono** do LEAF: o servidor espera pelos clientes com seus respectivos **delays simulados** antes de agregar.  
-- Executamos novamente as rodadas e coletamos **métricas do modelo** (acurácia, loss, etc.).  
-- Saída: `model_metrics.csv`.
-
----
-
-## Requisitos
-
-- **Python**  3.6  
-- **virtualenv**
-- Dependências Python listadas em `requirements.txt`
-- **LEAF** (submódulo ou instalado localmente)
-- Simulador de rede (Goland)
-
----
-
-## Instalação e Ambiente
-
-### 1) Instalar o virtualenv
-```bash
-sudo apt update && sudo apt install -y python3-virtualenv
+```text
+TraceFL-Net-Sim/
+├── trace_driven_simulator/   # Core Go discrete-event simulator
+├── leaf-sync/                # Synchronous FL workload generation
+├── traces/                   # Trace preparation, processing, aggregation, and plots
+├── speed_up_eval/            # Complementary analysis
+├── run_simulation.sh         # Simulation workflow
+├── requirements.txt          # Python dependencies
+├── go.mod
+├── go.sum
+└── README.md
 ```
 
-### 2) Criar ambiente
-```bash
-virtualenv -p $(which python3) venv
+The `traces/` directory contains its own documentation describing the complete trace-processing workflow.
+
+## Trace Processing Pipeline
+
+The trace-processing workflow is organized under `traces/`:
+
+```text
+LEAF traces (sys/)
+        |
+        v
+processing / validation
+        |
+        v
+computational-capacity assignment
+and computation-time generation
+        |
+        v
+network simulator
+        |
+        v
+per-seed network traces (net/)
+        |
+        v
+aggregation across seeds (net_join/)
+        |
+        v
+analysis and figures
 ```
 
-### 3) Ativar ambiente
-```bash
-source venv/bin/activate
+The main directories are:
+
+| Directory | Purpose |
+|---|---|
+| `traces/sys/` | Original FL system traces used as input |
+| `traces/sys_gen/` | Regenerated traces used for validation before replacing input traces |
+| `traces/sys_bimodal/` | Traces extended with client processing capacity and computation time |
+| `traces/sys_bimodal_amdahl/` | Traces generated with Amdahl-based effective capacities |
+| `traces/net/` | Network-simulator output for individual seeds |
+| `traces/net_join/` | Network traces aggregated across simulation seeds |
+| `traces/figures/` | Figures generated from trace and network results |
+
+See [`traces/README.md`](traces/README.md) for the detailed workflow, script descriptions, and trace formats.
+
+## Computational Heterogeneity
+
+Client processing capacities are modeled using a bimodal distribution. Each client is assigned a fixed base processing capacity that is maintained across training rounds.
+
+For client \(i\) in round \(r\),
+
+\[
+T_{i,r} =
+\frac{X_{i,r}}
+{C^{\mathrm{eff}}_{i,d} \times 10^9},
+\]
+
+where \(X_{i,r}\) is the computational demand in FLOP/round and \(C^{\mathrm{eff}}_{i,d}\) is the effective processing capacity in GFLOP/s.
+
+For the journal experiments, effective processing capacity is obtained using Amdahl's law with four processing cores and application-specific parallelizable fractions.
+
+Trace generation and capacity assignment are implemented in:
+
+```text
+traces/generate_bimodal_traces.py
 ```
 
-### 4) Instalar dependências
+Detailed parameters and output columns are documented in `traces/README.md`.
+
+## Requirements
+
+The project requires:
+
+- Go
+- Python
+- Python dependencies listed in `requirements.txt`
+
+Python environment:
+
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 5) (Opcional) Desativar ambiente
-```bash
-deactivate
-```
-
----
-
-## Estrutura do Repositório
-
-```
-TraceFL-Net-Sim/
-├─ configs/
-│  ├─ example.yaml
-├─ docs/
-│  └─ pipeline.png
-├─ leaf_runner/
-│  ├─ run_leaf_baseline.py
-│  └─ replay_with_delays.py
-├─ leaf-sync/                  # NOVO: FL síncrono (extensão do LEAF)
-│  ├─ sync_runner.py           # agendador síncrono
-│  └─ utils.py
-├─ traffic/
-│  └─ flops_to_traffic.py
-├─ net_sim/
-│  ├─ run_sim.py
-│  └─ backends/
-│     ├─ ns3.py
-│     └─ mininet.py
-├─ outputs/
-│  ├─ leaf_metrics.csv
-│  ├─ traffic_trace.csv
-│  ├─ network_trace.csv
-│  └─ model_metrics.csv
-├─ requirements.txt
-└─ README.md
-```
-
----
-<!--
-## Configuração
-
-Arquivo de exemplo (`configs/example.yaml`):
-
-```yaml
-leaf:
-  dataset: femnist
-  model: cnn
-  sync_mode: synchronous
-  rounds: 100
-  clients_per_round: 0.1
-  local_epochs: 1
-  batch_size: 20
-  lr: 0.01
-  seed: 42
-
-traffic:
-  mtu_bytes: 1500
-  compress_updates: false
-  codec: none
-  clock_resolution_ms: 1
-
-net_sim:
-  backend: ns3
-  topology: line-10
-  link_capacity_mbps: 100
-  link_delay_ms: 10
-  queue_discipline: pfifo_fast
-  loss_rate: 0.0
-  seed: 123
-
-output_dir: outputs
-```
-
----
--->
-## Como Executar (Quickstart)
-
-1) Baseline no LEAF:
-```bash
-python -m leaf_runner.run_leaf_baseline --config configs/example.yaml
-```
-
-2) Converter FLOPs → tráfego:
-```bash
-python -m traffic.flops_to_traffic --leaf outputs/leaf_metrics.csv        --config configs/example.yaml --out outputs/traffic_trace.csv
-```
-
-3) Simulação de rede:
-```bash
-python -m net_sim.run_sim --traffic outputs/traffic_trace.csv        --config configs/example.yaml --out outputs/network_trace.csv
-```
-
-4) Reexecução síncrona no LEAF:
-```bash
-python -m leaf_runner.replay_with_delays --delays outputs/network_trace.csv        --config configs/example.yaml --out outputs/model_metrics.csv
-```
-
----
-# 📌 Como executar o script
-
-O script foi adaptado para separar **metadados** e **métricas** em pastas diferentes:
-
-- **Metadados (`meta/`)** → armazenados em `baseline/` (ou outra pasta que você indicar).
-- **Métricas (`metrics_sys.csv`, `metrics_stat.csv`)** → armazenadas em `results/` (ou outra pasta que você indicar).
-
----
-
-## ▶️ leaf-sync: Execução padrão
-
-Se você simplesmente rodar o script .sh (paper_expiments) sem argumentos, os resultados serão organizados assim:
+Go dependencies:
 
 ```bash
-./run_experiment.sh
+go mod download
 ```
 
-- Metadados em: `./baseline`
-- Métricas em: `./results`
+## Running the Experiments
 
----
-
-## ⚙️ Execução personalizada
-
-Você também pode escolher manualmente as pastas de saída:
+The main simulation workflow is executed from the repository root using:
 
 ```bash
-./run_experiment.sh ./baseline ./results
-# ou
-./run_experiment.sh /caminho/para/baseline /caminho/para/results
+./run_simulation.sh
 ```
 
-No exemplo acima:
-- Os **metadados** serão copiados para `/caminho/para/baseline`
-- As **métricas** serão salvas em `/caminho/para/results`
+Trace preprocessing and analysis scripts are executed from:
 
----
-
-💡 Observação: É possível estender o script para gerar automaticamente um **CSV combinado por experimento** dentro da pasta `results/`, juntando as colunas de `sys_metrics` e `stat_metrics` com o mesmo sufixo. Caso queira, isso pode ser incluído diretamente no script.
-
-
-
----
-
-## Métricas & Saídas
-
-- `leaf_metrics.csv` — workload FL (FLOPs, tempo local, mensagens).  
-- `traffic_trace.csv` — tráfego em pacotes.  
-- `network_trace.csv` — métricas de rede (delay, jitter, vazão, perdas).  
-- `model_metrics.csv` — métricas do modelo após simulação com delays.
-
----
-
-## Reprodutibilidade
-
-- Fixe `seed` no LEAF e no simulador.  
-- Salve trace `.csv` de saída.  
-- Registre `seed` do simulador 
-
----
-
-## Boas Práticas
-
-- Separe workload (LEAF) e rede (simulador).  
-- Capture **tamanho real** das mensagens (com cabeçalhos).  
-- Relate métricas por rodada e por cliente.
-
----
-
-## Licença & Citação
-
+```text
+traces/
 ```
+
+For example:
+
+```bash
+cd traces
+python generate_bimodal_traces.py
+python join_traces.py
+```
+
+Before reproducing the journal experiments, verify the parameter settings documented in `traces/README.md`, including the Amdahl configuration and random seeds.
+
+## Background Traffic
+
+TraceFL-Net-Sim supports concurrent background traffic with distinct temporal characteristics:
+
+| Profile | Representative traffic |
+|---|---|
+| Poisson | Web-like traffic |
+| Pareto | Bursty multimedia traffic |
+| CBR | VoIP-like traffic |
+
+These traffic sources compete with FL traffic for the shared network resources.
+
+## Reproducibility
+
+The trace-processing scripts use deterministic seeds where applicable. Network experiments are executed with multiple independent seeds, and the resulting traces can be combined using:
+
+```text
+traces/join_traces.py
+```
+
+The exact code version associated with a submitted manuscript should be preserved with a Git tag or release.
+
+Example:
+
+```bash
+git tag -a jisa-r1 -m "Artifact for JISA revision R1"
+git push origin jisa-r1
+```
+
+For reproducibility, the repository should preserve:
+
+- the FL input traces;
+- the scripts used to generate computation times;
+- the network-simulation parameters;
+- the random seeds;
+- the code version associated with the reported results.
+
+## Scope
+
+TraceFL-Net-Sim provides a technology-agnostic abstraction of a shared access network. Contention is represented through configured link capacities and FCFS queues.
+
+The simulator does not reproduce technology-specific MAC-layer scheduling or bandwidth-allocation mechanisms used by systems such as 5G, Wi-Fi, or PON. Consequently, the measured delays characterize the modeled bandwidth-constrained access-network scenario and should not be interpreted as direct predictions for a specific access technology.
+
+## Citation
+
+If you use TraceFL-Net-Sim in your research, please cite the corresponding publication.
+
+Previous conference version:
+
+```bibtex
 @inproceedings{cunha2025avaliaccao,
   title={Avalia{\c{c}}{\~a}o de Desempenho de Aplica{\c{c}}{\~o}es de Aprendizado Federado em Redes de Acesso Compartilhadas},
-  author={Cunha, Diogo M and Guerra, Marco A and Ciceri, Oscar J and da Fonseca, Nelson LS and Astudillo, Carlos A},
+  author={Cunha, Diogo M. and Guerra, Marco A. and Ciceri, Oscar J. and da Fonseca, Nelson L. S. and Astudillo, Carlos A.},
   booktitle={Workshop em Desempenho de Sistemas Computacionais e de Comunica{\c{c}}{\~a}o (WPerformance)},
   pages={121--132},
   year={2025},
   organization={SBC}
 }
 ```
+
+The citation for the extended journal article will be added after publication.
+
+## License
+
+See the `LICENSE` file for licensing information.

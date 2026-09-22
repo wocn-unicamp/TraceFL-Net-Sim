@@ -33,3 +33,16 @@ leaf-sync/autodoc/
 
 # Permitir un archivo .zip dentro de leaf-sync/datasets/
 !leaf-sync/datasets/*.zip
+
+
+# Removed for JISA
+.Rhistory
+.RData
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.log
+.DS_Store
+
+
