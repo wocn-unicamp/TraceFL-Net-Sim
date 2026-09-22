@@ -1,817 +1,301 @@
 # TraceFL-Net-Sim
 
-**TraceFL-Net-Sim** is a trace-driven discrete-event simulator for evaluating how Federated Learning (FL) workloads interact with background traffic in bandwidth-constrained access networks.
+**Trace-driven Federated-Learning Network Simulator**
 
-The project combines three main components:
+[![Go](https://img.shields.io/badge/Go-%E2%89%A5%201.25-00ADD8?logo=go&logoColor=white)](go.mod)
+[![Python](https://img.shields.io/badge/Python-3-3776AB?logo=python&logoColor=white)](requirements.txt)
+[![DOI](https://img.shields.io/badge/DOI-10.5753%2Fwperformance.2025.9221-blue)](https://doi.org/10.5753/wperformance.2025.9221)
 
-1. a modified synchronous FL workflow based on LEAF;
-2. a trace-processing pipeline that converts per-client computational demand into local computation times;
-3. a Go-based discrete-event network simulator.
+TraceFL-Net-Sim is a trace-driven discrete-event simulator for evaluating how federated learning (FL) workloads interact with background traffic in bandwidth-constrained access networks. It combines three components:
 
-This repository accompanies the manuscript:
+- **`leaf-sync/`**: a modified version of the LEAF benchmark that runs the FL applications and records, for every client and round, the computational demand (FLOP/round) and the size of the model update;
+- **`traces/`**: scripts that assign a processing capacity to each client and convert its computational demand into local computation time;
+- **`trace_driven_simulator/`**: a discrete-event simulator, written in Go, of the access network in which the model updates compete with background traffic.
 
-> **Probabilistic Modeling and Performance Analysis of Federated Learning Traffic over Access Networks**
+This repository accompanies the manuscript *Probabilistic Modeling and Performance Analysis of Federated Learning Traffic over Access Networks* (O. J. Ciceri-Coral, M. A. Guerra Pedroso, D. M. da Cunha, N. L. S. da Fonseca and C. A. Astudillo-Trujillo), submitted to the Journal of Internet Services and Applications (JISA), which extends our [WPerformance 2025 paper](https://doi.org/10.5753/wperformance.2025.9221).
 
----
+> [!NOTE]
+> The script that converts the computational demand reported by LEAF (FLOP/round) into local computation times, Stage 3 of the pipeline in the paper, is [`traces/convert_flops_to_trace.py`](traces/convert_flops_to_trace.py). It is described in [Stage 3](#stage-3-computation-time-of-each-client).
 
-## Overview
+> [!TIP]
+> The converted traces used in the paper are included in `traces/sys_bimodal_amdahl/`, so the network results can be reproduced without running LEAF. See [Quick start](#quick-start).
 
-The complete experimental workflow is:
+## Pipeline
 
-```text
-FL experiments
-  leaf-sync/
-      |
-      | per-client system metrics
-      | FLOP/round, model-update size, client, round
-      v
-Trace processing
-  traces/
-      |
-      | computational-demand validation
-      | client-capacity assignment
-      | FLOP -> computation-time conversion
-      v
-Processed FL traces
-      |
-      v
-Network simulation
-  run_simulation.sh
-  trace_driven_simulator/
-      |
-      | per-seed network metrics
-      v
-Trace aggregation and analysis
-  traces/net/
-  traces/net_join/
-  traces/figures/
+| Stage (Fig. 2 of the paper) | What it does | Code | Output |
+|---|---|---|---|
+| 1–2 | Runs the FL applications and records the system metrics | `leaf-sync/paper_experiments/` | `traces/sys/` |
+| 3 | Assigns client capacities and converts FLOP/round into computation time | `traces/convert_flops_to_trace.py` | `traces/sys_bimodal_amdahl/` |
+| 4 | Simulates the FL and background traffic, five seeds per configuration | `run_simulation.sh`, `trace_driven_simulator/` | `traces/net/` |
+| 5 | Merges the seeds and computes the network metrics and figures | `traces/join_traces.py`, `traces/plot_*.py` | `traces/net_join/`, `traces/figures/` |
+
+The FL workflow is synchronous and round-based: in each round, the central server (CS) waits for the model updates of all participating clients before aggregating them, so the last update to arrive determines the duration of the round.
+
+## Quick start
+
+Requirements: Linux with `bash` and `bc`, [Go](https://go.dev/dl/) ≥ 1.25, and Python 3 with the packages in `requirements.txt`.
+
+```bash
+git clone https://github.com/wocn-unicamp/TraceFL-Net-Sim.git
+cd TraceFL-Net-Sim
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# Stage 3 (optional): the converted traces used in the paper are already in traces/sys_bimodal_amdahl/
+(cd traces && python convert_flops_to_trace.py)
+
+# Stage 4: network simulation, five seeds per configuration -> traces/net/
+./run_simulation.sh
+
+# Stage 5: merge the seeds and plot -> traces/net_join/, traces/figures/
+cd traces
+python join_traces.py
+python plot_cdf_computation_time.py
+python plot_fl_training_time.py
 ```
 
-The FL and network stages are intentionally separated. The FL execution produces the computational workload, while TraceFL-Net-Sim evaluates how the corresponding model updates are affected by the communication network.
+`run_simulation.sh` builds the simulator if Go is installed. On a server without Go, build the binary on another machine with `GOOS=linux GOARCH=amd64 go build -o sim_bin trace_driven_simulator/main.go` and run `SIM_BIN=/path/to/sim_bin ./run_simulation.sh`.
 
-The evaluated FL workflow is synchronous and round-based: the central server waits for the model updates from all participating clients before completing the current training round.
-
----
-
-## Repository Structure
+## Repository structure
 
 ```text
 TraceFL-Net-Sim/
-├── README.md
-├── requirements.txt
-├── go.mod
-├── go.sum
-├── run_simulation.sh
-│
-├── figures/
-├── params/
-├── speed_up_eval/
-│
-├── leaf-sync/
-│   ├── baseline/
-│   ├── benchmark_comp_capacity/
-│   ├── data/
-│   ├── datasets/
-│   ├── docs/
-│   ├── generador_trafico/
-│   ├── models/
-│   ├── paper_experiments/
-│   ├── plots/
-│   ├── plots_2026/
-│   ├── results/
-│   ├── LICENSE.md
-│   ├── README.md
-│   └── requirements.txt
-│
-├── traces/
-│   ├── convert_flops_to_trace.py
-│   ├── join_traces.py
-│   ├── plot_bimodal_traces.py
-│   ├── plot_cdf_computation_time.py
-│   ├── plot_fl_training_time.py
-│   ├── plot_verificar_traces.py
-│   ├── sys/
-│   ├── sys_bimodal/
-│   ├── sys_bimodal_amdahl/
-│   ├── net/
-│   ├── net_join/
-│   ├── stat/
-│   ├── normalize/
-│   └── figures/
-│       ├── bimodal_cdfs/
-│       ├── bimodal_cdfs_amdahl/
-│       ├── fl_training_time/
-│       ├── grouped_cdfs/
-│       ├── net_grouped_cdfs/
-│       └── net_grouped_cdfs_diogo/
-│
-└── trace_driven_simulator/
-    ├── data_processor.py
-    ├── main.go
-    ├── internal/
-    │   └── simulator/
-    │       ├── functions.go
-    │       ├── models.go
-    │       └── queues/
-    └── packages/
-        └── writer/
-            ├── constants.go
-            ├── functions.go
-            └── models.go
+├── run_simulation.sh              # Stage 4: runs all network simulations
+├── params/                        # Simulation parameter files
+├── requirements.txt               # Python packages for stages 3–5
+├── go.mod, go.sum                 # Go module (Go ≥ 1.25)
+├── leaf-sync/                     # Stages 1–2: modified LEAF (see leaf-sync/README.md)
+│   ├── paper_experiments/         #   femnist.sh and shakespeare.sh are used in the paper
+│   ├── plots_2026/                #   accuracy and computational-demand analyses
+│   ├── requirements.txt           #   LEAF environment
+│   └── LICENSE.md                 #   original LEAF license
+├── traces/                        # Stages 3 and 5 (see traces/README.md)
+│   ├── convert_flops_to_trace.py  #   capacity assignment, FLOP/round → computation time
+│   ├── join_traces.py             #   merges the outputs of the five seeds
+│   ├── plot_*.py                  #   validation and result figures
+│   ├── sys/                       #   original LEAF system traces
+│   ├── sys_bimodal/               #   heterogeneous capacities, without Amdahl scaling
+│   ├── sys_bimodal_amdahl/        #   heterogeneous capacities with Amdahl scaling (paper)
+│   ├── net/                       #   simulator outputs, one file per seed
+│   ├── net_join/                  #   simulator outputs merged across seeds
+│   ├── stat/, normalize/          #   auxiliary data of the analysis scripts
+│   └── figures/                   #   generated figures
+├── trace_driven_simulator/        # Stage 4: discrete-event simulator
+│   ├── main.go                    #   entry point
+│   ├── data_processor.py          #   prepares the simulator input (called by run_simulation.sh)
+│   ├── internal/simulator/        #   models, event handling and queues
+│   └── packages/writer/           #   output writers
+├── speed_up_eval/                 # Monte Carlo analysis (Section 5.3)
+└── figures/
 ```
 
-The main directories are described below.
+## Stages 1 and 2. FL workload with LEAF
 
----
-
-## 1. FL Workload Generation
-
-The first stage is performed under:
-
-```text
-leaf-sync/
-```
-
-This directory contains the modified LEAF-based environment used to execute the FL applications and collect the workload information required by TraceFL-Net-Sim.
-
-The FL execution produces system metrics for each client and training round, including:
-
-- client identifier;
-- training round;
-- number of local samples;
-- bytes read;
-- bytes written;
-- local computational demand (`FLOP/round`).
-
-The paper experiment scripts are located in:
-
-```text
-leaf-sync/paper_experiments/
-```
-
-Current experiment scripts include:
-
-```text
-femnist.sh
-shakespeare.sh
-sent140.sh
-test.sh
-```
-
-The experiments considered in the associated manuscript primarily use:
-
-- **FEMNIST with a CNN**;
-- **Shakespeare with an LSTM**.
-
-Additional analysis scripts are available under:
-
-```text
-leaf-sync/plots_2026/
-```
-
-These scripts include utilities for analyzing model accuracy, computational demand, computation time, target accuracy, and total computation time.
-
-### Running an FL experiment
-
-From the repository root:
+The paper uses FEMNIST with a CNN (`leaf-sync/paper_experiments/femnist.sh`) and Shakespeare with an LSTM (`shakespeare.sh`); the other scripts in that folder are not used. This step is only needed to generate new workloads. LEAF depends on TensorFlow 1.x, which requires Python 3.6, so it needs its own environment:
 
 ```bash
+conda create -n leaf-sync python=3.6 -y
+conda activate leaf-sync
+pip install -r leaf-sync/requirements.txt
 cd leaf-sync/paper_experiments
+bash femnist.sh        # or: bash shakespeare.sh
 ```
 
-For example:
+Copy the resulting system-metrics files (`sys_metrics_*.csv`) to `traces/sys/`, the input of Stage 3.
 
-```bash
-bash femnist.sh
-```
+## Stage 3. Computation time of each client
 
-or:
+### Processing capacity
 
-```bash
-bash shakespeare.sh
-```
+Each client receives a base processing capacity that represents a low- or a high-capacity device:
 
-The system-metrics traces required by the next stage are placed under:
-
-```text
-traces/sys/
-```
-
----
-
-## 2. Original FL Traces
-
-The directory
-
-```text
-traces/sys/
-```
-
-contains the original FL system traces used as input to the trace-processing stage.
-
-The files preserve the LEAF system-metrics format and contain eight fields without a header:
-
-| Position | Field |
-|---:|---|
-| 1 | `client_id` |
-| 2 | `round` |
-| 3 | `hierarchy` |
-| 4 | `num_samples` |
-| 5 | `set` |
-| 6 | `bytes_read` |
-| 7 | `bytes_written` |
-| 8 | `local_computations` |
-
-The `local_computations` field contains the per-client computational demand in FLOPs.
-
-Before converting these traces into computation times, their computational-demand distributions can be inspected with:
-
-```bash
-cd traces
-python plot_verificar_traces.py
-```
-
-This script reads the `local_computations` field and generates grouped cumulative distribution functions (CDFs) under:
-
-```text
-traces/figures/grouped_cdfs/
-```
-
-These figures are used as consistency checks when comparing workloads obtained from different FL configurations.
-
----
-
-## 3. FLOP-to-Trace Conversion
-
-The main conversion script is:
-
-```text
-traces/convert_flops_to_trace.py
-```
-
-This script converts the per-client computational demand reported by LEAF into local computation times. These times determine when each client's model update becomes available for transmission by the network simulator.
-
-For client $i$ in training round $r$, the local computation time is calculated as:
-
-$$
-T_{i,r} =
-\frac{X_{i,r}}
-{C^{\mathrm{eff}}_{i,d} \times 10^9},
-$$
-
-where:
-
-- $X_{i,r}$ is the computational demand reported by LEAF in `FLOP/round`;
-- $C^{\mathrm{eff}}_{i,d}$ is the effective processing capacity of client $i$ for application $d$, expressed in GFLOP/s.
-
-The script preserves the eight original LEAF fields and appends two additional columns:
-
-| Position | Field | Description |
-|---:|---|---|
-| 9 | `capacity_gflops` | Effective processing capacity assigned to the client |
-| 10 | `time` | Local computation time in seconds |
-
-The original traces stored in `traces/sys/` are not modified.
-
-### Heterogeneous Processing Capacities
-
-Client processing capacities are modeled using a bimodal distribution:
-
-$$
+```math
 C_i^{\mathrm{base}} \sim
 \begin{cases}
-\mathcal{N}(0.5,\,0.12^2), & \text{low-capacity clients}, \\
-\mathcal{N}(1.5,\,0.12^2), & \text{high-capacity clients}.
+\mathcal{N}\left(0.5,\ 0.12^{2}\right) & \text{for low-capacity clients,}\\
+\mathcal{N}\left(1.5,\ 0.12^{2}\right) & \text{for high-capacity clients,}
 \end{cases}
-$$
-
-Half of the clients are assigned to each group. Samples are restricted to:
-
-$$
-0.20 \leq C_i^{\mathrm{base}} \leq 1.80
-\quad \text{GFLOP/s}.
-$$
-
-A processing capacity is assigned once to each client and remains fixed across training rounds.
-
-The script uses rejection sampling rather than clipping values at the distribution limits, avoiding artificial probability mass at the boundaries.
-
-### Amdahl Scaling
-
-For the journal experiments, the base processing capacity is scaled according to Amdahl's law to represent the different degrees of parallelism of the evaluated applications.
-
-For application $d$, the speedup is:
-
-$$
-S_d =
-\frac{1}
-{(1-P_d)+\frac{P_d}{N_c}},
-$$
-
-where:
-
-- $P_d$ is the parallelizable fraction of the application;
-- $N_c$ is the number of processing cores.
-
-The effective processing capacity is then:
-
-$$
-C^{\mathrm{eff}}_{i,d}
-=
-C_i^{\mathrm{base}} S_d.
-$$
-
-The current experiment configuration uses:
-
-| Application | Parallelizable fraction ($P_d$) | Cores ($N_c$) | Speedup ($S_d$) |
-|---|---:|---:|---:|
-| FEMNIST/CNN | 0.95 | 4 | 3.478 |
-| Shakespeare/LSTM | 0.40 | 4 | 1.429 |
-
-To generate the processed traces:
-
-```bash
-cd traces
-python convert_flops_to_trace.py
+\qquad 0.20 \le C_i^{\mathrm{base}} \le 1.80 \ \text{GFLOP/s}.
 ```
 
-With Amdahl scaling enabled, the generated traces are stored in:
+Half of the clients belong to each group. Values outside [0.20, 1.80] GFLOP/s are redrawn (rejection sampling), so each group follows a truncated normal distribution without artificial probability mass at the limits. Each client keeps its capacity in all rounds.
 
-```text
-traces/sys_bimodal_amdahl/
+### Amdahl scaling
+
+The base capacity is scaled by the Amdahl speedup $`S_d`$ of application $`d`$, which depends on its parallelizable fraction $`P_d`$ and on the number of cores $`N_c`$ (Eqs. 7 and 8 of the paper):
+
+```math
+S_d = \frac{1}{(1-P_d) + \dfrac{P_d}{N_c}},
+\qquad
+C_{i,d}^{\mathrm{eff}} = S_d \, C_i^{\mathrm{base}}.
 ```
 
-The script also generates client-to-capacity mappings and plots of the resulting processing-capacity distributions.
+| Application | $`P_d`$ | $`N_c`$ | $`S_d`$ | Range of $`C_{i,d}^{\mathrm{eff}}`$ (GFLOP/s) | Mean $`C_{i,d}^{\mathrm{eff}}`$, low / high group (GFLOP/s) |
+|---|---:|---:|---:|---:|---:|
+| FEMNIST (CNN) | 0.95 | 4 | 3.478 | 0.70–6.26 | 1.75 / 5.21 |
+| Shakespeare (LSTM) | 0.40 | 4 | 1.429 | 0.29–2.57 | 0.72 / 2.14 |
 
----
+The parallelizable fractions are modeling assumptions: the convolutions of the CNN parallelize well across cores, whereas the recurrent dependencies of the LSTM limit parallel execution.
 
-## 4. Validation of Converted Traces
+### Local computation time
 
-The `traces/` directory contains additional scripts used to inspect the generated workloads before running the network simulator.
+The computation time of client $`i`$ in round $`r`$ follows from its computational demand $`X_{i,r}`$, in FLOP/round as reported by LEAF, and its effective capacity in GFLOP/s (Eq. 9 of the paper):
 
-### Computational-Demand Validation
-
-```text
-plot_verificar_traces.py
+```math
+T_{i,r} = \frac{X_{i,r}}{C_{i,d}^{\mathrm{eff}} \times 10^{9}} \quad [\mathrm{s}],
 ```
 
-This script analyzes the original traces in `traces/sys/` and produces grouped CDFs of the computational demand.
+where the factor $`10^{9}`$ converts GFLOP/s into FLOP/s. For example, a FEMNIST round of 2 GFLOP takes 1.15 s on a client with $`C_i^{\mathrm{base}} = 0.5`$ ($`C_{i,d}^{\mathrm{eff}} = 1.74`$ GFLOP/s) and 0.38 s on a client with $`C_i^{\mathrm{base}} = 1.5`$ ($`C_{i,d}^{\mathrm{eff}} = 5.22`$ GFLOP/s). $`T_{i,r}`$ is the instant at which the model update of the client enters its transmission queue in the simulator. Since the bimodal model applies to the capacity and not to the time, the distribution of $`T_{i,r}`$ is not necessarily bimodal.
 
-Run:
+### Trace format
 
-```bash
-python plot_verificar_traces.py
+`convert_flops_to_trace.py` reads `traces/sys/` without modifying it and writes the converted traces to `traces/sys_bimodal_amdahl/` (or `traces/sys_bimodal/` without Amdahl scaling), together with the client-to-capacity mapping and plots of the capacity distributions (Figure 8 of the paper). The files have no header; the converted traces keep the eight LEAF fields and append two:
+
+| # | Field | Content |
+|---:|---|---|
+| 1 | `client_id` | Client identifier |
+| 2 | `round` | Training round $`r`$ |
+| 3 | `hierarchy` | Client group (LEAF field) |
+| 4 | `num_samples` | Number of local samples |
+| 5 | `set` | Data partition |
+| 6 | `bytes_read` | Bytes received from the server |
+| 7 | `bytes_written` | Bytes sent to the server (model-update size) |
+| 8 | `local_computations` | Computational demand $`X_{i,r}`$ (FLOP/round) |
+| 9 | `capacity_gflops` | Capacity assigned to the client (GFLOP/s); $`C_{i,d}^{\mathrm{eff}}`$ when Amdahl scaling is enabled (added) |
+| 10 | `time` | Computation time $`T_{i,r}`$ (s) (added) |
+
+## Stage 4. Network simulation
+
+TraceFL-Net-Sim reproduces the transmission of Ethernet frames from the FL clients and the background sources to the CS:
+
+- **Topology.** Each FL client is connected to the access device by its own link, every traffic source has an independent input queue, and all frames leave through a shared output link to the CS. Queues are served FCFS and have infinite buffers, and the path from the switch to the CS has a constant delay.
+- **FL traffic.** A model update enters the queue of its client at the end of local computation ($`T_{i,r}`$). It is fragmented into Ethernet frames (1500-byte MTU plus an 18-byte header) and reassembled when all its frames reach the CS.
+- **Events.** Frame arrival at an input queue, forwarding to the output queue, enqueuing at the output queue, and departure towards the CS.
+- **Background traffic.** Three profiles, each parameterized to keep the configured mean offered load. In the multi-traffic configuration used in the paper, the three run concurrently with equal shares of the load:
+
+| Profile | Represents | Inter-arrival times | Frame size |
+|---|---|---|---|
+| Poisson | Web-like traffic | Exponential | 64–1518 B |
+| Pareto | Bursty multimedia-like traffic | Bounded Pareto (heavy-tailed) | 64–1518 B |
+| CBR | VoIP-like traffic | Constant (periodic) | 70 B |
+
+### Frame losses
+
+Each transmission attempt fails independently with probability $`p`$, the frame-loss rate (the simulator option `-transmission-success-rate` equals $`1-p`$); in the paper, losses are applied at the server-side queue. A lost frame is not discarded: after a backoff it is re-inserted into the queue for a new attempt, which is repeated until the frame reaches the CS. The backoff of the $`n`$-th retransmission is
+
+```math
+B_n = 2^{n}\,\xi, \qquad \xi \sim \mathcal{U}(0.016,\ 0.064)\ \mathrm{s}.
 ```
 
-Output:
+A frame therefore needs $`1/(1-p)`$ attempts on average (1.25 for $`p = 0.20`$). Because the buffers are infinite, losses come only from this model and never from buffer overflow.
 
-```text
-traces/figures/grouped_cdfs/
+### Delay, round duration and training time
+
+The delay of the model update of client $`i`$ in round $`r`$ runs from the departure of its first frame from the client, $`t_{i,r}^{\mathrm{dep}}`$, until the arrival of its last frame at the CS, $`t_{i,r}^{\mathrm{CS}}`$:
+
+```math
+D_{i,r} = t_{i,r}^{\mathrm{CS}} - t_{i,r}^{\mathrm{dep}}.
 ```
 
-### Computation-Time Validation
+With synchronous aggregation, round $`r`$ starts at $`s_r`$ and ends when the last update of the set $`\mathcal{N}_F`$ of participating clients reaches the CS. Rounds run back to back, so the total training time over $`N_R`$ rounds is the sum of the round durations:
 
-```text
-plot_bimodal_traces.py
+```math
+R_r = \max_{i \in \mathcal{N}_F} t_{i,r}^{\mathrm{CS}} - s_r,
+\qquad
+T^{\mathrm{total}} = \sum_{r=1}^{N_R} R_r .
 ```
 
-This script analyzes the local computation times obtained after assigning heterogeneous processing capacities.
+Figures 14 and 15 split each round into the computation time of the client whose update arrives last, $`T_{i_r^{*},r}`$ with $`i_r^{*} = \arg\max_{i \in \mathcal{N}_F} t_{i,r}^{\mathrm{CS}}`$, and the remainder $`R_r - T_{i_r^{*},r}`$, attributed to communication.
 
-Run:
+### Parameters
 
-```bash
-python plot_bimodal_traces.py
-```
+The values of the discrete-event evaluation (Table 4 of the paper) are set in `run_simulation.sh` and `params/`; the capacity parameters are set in `traces/convert_flops_to_trace.py` (see [Stage 3](#stage-3-computation-time-of-each-client)).
 
-Depending on the selected input directory, the generated figures are stored under:
-
-```text
-traces/figures/bimodal_cdfs/
-```
-
-or:
-
-```text
-traces/figures/bimodal_cdfs_amdahl/
-```
-
-The bimodal model applies to **processing capacity** rather than directly to computation time. Since computation time depends jointly on computational demand and processing capacity, the resulting computation-time distribution is not necessarily bimodal.
-
----
-
-## 5. Network Simulator
-
-The network simulator is implemented in Go under:
-
-```text
-trace_driven_simulator/
-```
-
-Its main structure is:
-
-```text
-trace_driven_simulator/
-├── main.go
-├── data_processor.py
-├── internal/simulator/
-│   ├── functions.go
-│   ├── models.go
-│   └── queues/
-└── packages/writer/
-    ├── constants.go
-    ├── functions.go
-    └── models.go
-```
-
-The components have the following roles:
-
-- `main.go`: main simulator entry point;
-- `internal/simulator/`: simulation models, event-processing functions, and queue implementation;
-- `packages/writer/`: output structures and functions used to write simulation metrics;
-- `data_processor.py`: auxiliary data-processing utility associated with the simulator workflow.
-
-TraceFL-Net-Sim reproduces Ethernet-frame transmission from FL clients and background-traffic sources toward a central server.
-
-The modeled network includes:
-
-- FL-device access links;
-- independent traffic-source queues;
-- a shared output link;
-- FCFS queue service;
-- configurable link capacities;
-- propagation delay;
-- probabilistic frame losses;
-- retransmissions;
-- frame delivery and reassembly at the central server.
-
-The simulator provides a technology-agnostic abstraction of a shared access network. Its purpose is to evaluate contention, queueing, and bottleneck effects rather than reproduce the MAC-layer scheduler of a specific access technology.
-
----
-
-## 6. Background Traffic
-
-TraceFL-Net-Sim supports three concurrent background-traffic profiles:
-
-| Traffic profile | Representative service | Temporal behavior |
-|---|---|---|
-| Poisson | Web-like traffic | Exponentially distributed inter-arrival times |
-| Pareto | Multimedia-like traffic | Bursty and heavy-tailed behavior |
-| CBR | VoIP-like traffic | Periodic frame generation |
-
-The background sources coexist with FL traffic and compete for the capacity of the shared network resources.
-
----
-
-## 7. Running the Network Simulation
-
-The top-level script:
-
-```text
-run_simulation.sh
-```
-
-is used to launch the network-simulation workflow.
-
-From the repository root:
-
-```bash
-./run_simulation.sh
-```
-
-Simulation parameter files are stored under:
-
-```text
-params/
-```
-
-The network simulator uses the processed FL traces as workload input and produces one output file for each configured random seed.
-
-The resulting network traces are stored under:
-
-```text
-traces/net/
-```
-
-These traces contain the network-level measurements used by the subsequent analysis scripts.
-
----
-
-## 8. Combining Simulation Runs
-
-The Go simulator produces a separate network trace for each seed.
-
-The script:
-
-```text
-traces/join_traces.py
-```
-
-combines traces corresponding to the same experiment.
-
-Run:
-
-```bash
-cd traces
-python join_traces.py
-```
-
-Input:
-
-```text
-traces/net/metrics_network_*.csv
-```
-
-Output:
-
-```text
-traces/net_join/
-```
-
-The seed suffix is removed from the output experiment name, while observations from all seeds are preserved in the combined trace.
-
----
-
-## 9. Network and Training-Time Analysis
-
-Several scripts under `traces/` operate on the network-simulation outputs.
-
-### Computation-Time CDFs
-
-```text
-plot_cdf_computation_time.py
-```
-
-This script reads the combined network traces and generates grouped CDFs of the `computation-time` field.
-
-Run:
-
-```bash
-python plot_cdf_computation_time.py
-```
-
-Output:
-
-```text
-traces/figures/net_grouped_cdfs/
-```
-
-### FL Training Time
-
-```text
-plot_fl_training_time.py
-```
-
-This script processes the network traces to analyze FL training time after incorporating the simulated communication delays.
-
-Run:
-
-```bash
-python plot_fl_training_time.py
-```
-
-Output:
-
-```text
-traces/figures/fl_training_time/
-```
-
-The `traces/figures/` directory currently contains:
-
-```text
-bimodal_cdfs/
-bimodal_cdfs_amdahl/
-fl_training_time/
-grouped_cdfs/
-net_grouped_cdfs/
-net_grouped_cdfs_diogo/
-```
-
----
-
-## 10. Trace Directory Summary
-
-The main data directories under `traces/` are:
-
-| Directory | Purpose |
+| Parameter | Value |
 |---|---|
-| `sys/` | Original FL system traces |
-| `sys_bimodal/` | Traces with heterogeneous capacities without Amdahl scaling |
-| `sys_bimodal_amdahl/` | Traces with heterogeneous capacities and Amdahl scaling |
-| `net/` | Network-simulator outputs separated by seed |
-| `net_join/` | Network outputs combined across seeds |
-| `stat/` | Auxiliary statistical data used by the analysis workflow |
-| `normalize/` | Auxiliary normalized data used by processing and analysis scripts |
-| `figures/` | Validation and result figures |
+| FL-device link capacity | 1.5 Gb/s |
+| Shared output-link capacity | 2.25 Gb/s |
+| Aggregate background load | 67 % of the output-link capacity (≈ 1.5 Gb/s), ≈ 0.50 Gb/s per profile |
+| Participating clients, $`\beta = 1.0`$ | FEMNIST {3, 5, 10, 20, 30, 50}; Shakespeare {2, 3, 4, 5, 8, 10, 20} |
+| Mini-batch fraction $`\beta`$ | {0.2, 0.4, 0.5, 0.6, 0.8, 0.9}, with 20 FEMNIST or 10 Shakespeare clients |
+| Frame-loss rate $`p`$ | 0 (Figs. 11, 12, 14); 0, 0.05, 0.10, 0.15, 0.20 with 20 FEMNIST or 10 Shakespeare clients and $`\beta = 1.0`$ (Figs. 13, 15) |
+| Model-update size | FEMNIST 26.4 MB; Shakespeare 32.72 MB |
+| Training rounds $`N_R`$ | FEMNIST 500; Shakespeare 50 |
+| Random seeds | 42, 1337, 2026, 8888, 9999 |
 
-The `traces/` directory also contains its own README with additional implementation details.
+`run_simulation.sh` calls `trace_driven_simulator/data_processor.py` to prepare the simulator input from the converted traces and runs up to five simulations in parallel. Runs whose output already exists are skipped, so an interrupted campaign can be resumed.
 
----
+## Stage 5. Aggregation and analysis
 
-## 11. Complementary Computational Analysis
+The seeds change only the background traffic and the frame losses; the FL traces and the client capacities are the same in all runs. `join_traces.py` merges the five seeds of each experiment, removing the seed suffix from the file name and keeping all observations. The CDFs of Figures 11–13 pool the five seeds, and the training times of Figures 14–15 are means with 95 % confidence intervals across seeds.
 
-The directory:
+All scripts are in `traces/`, and paths are relative to it:
 
-```text
-speed_up_eval/
+| Script | Input → output | Purpose |
+|---|---|---|
+| `plot_verificar_traces.py` | `sys/` → `figures/grouped_cdfs/` | CDFs of the computational demand, to check the LEAF traces before conversion |
+| `plot_bimodal_traces.py` | `sys_bimodal/` or `sys_bimodal_amdahl/` → `figures/bimodal_cdfs/` or `figures/bimodal_cdfs_amdahl/` | CDFs of the computation times after the capacity assignment |
+| `join_traces.py` | `net/metrics_network_*.csv` → `net_join/` | Merges the seeds of each experiment |
+| `plot_cdf_computation_time.py` | `net_join/` → `figures/net_grouped_cdfs/` | CDFs of the computation and model-update arrival times |
+| `plot_fl_training_time.py` | network traces → `figures/fl_training_time/` | Total training time and its computation and communication components |
+
+## Monte Carlo analysis
+
+`speed_up_eval/` contains the complementary analysis of Section 5.3, which samples the probabilistic models of Section 4 instead of running the network simulator. In each replication, the computational demand and the capacity of every client are sampled, the round lasts as long as the slowest client (no communication delay), and the average offered load is the volume of model updates per round divided by the mean round duration:
+
+```math
+R^{\mathrm{MC}} = \max_{i \in \mathcal{N}_F} T_i,
+\qquad
+\bar{L} = \frac{8\,\lvert\mathcal{N}_F\rvert\,S}{\mathbb{E}\left[R^{\mathrm{MC}}\right]} \ [\mathrm{bit/s}],
+\qquad
+T^{\mathrm{total}} = N_R^{\mathrm{target}}\,\mathbb{E}\left[R^{\mathrm{MC}}\right],
 ```
 
-contains complementary computational analyses used to study processing-capacity effects independently from the detailed discrete-event network simulation.
+where $`S`$ is the model-update size in bytes and $`N_R^{\mathrm{target}}`$ is the number of rounds needed to reach the target accuracy, taken from the accuracy curves (Figures 9–10). For example, 20 FEMNIST clients ($`S`$ = 26.4 MB) with a mean round of 6.6 s give $`\bar{L}`$ = 8 × 20 × 26.4 × 10⁶ / 6.6 s = 640 Mb/s and, with 400 rounds, $`T^{\mathrm{total}}`$ = 44 min (Table 5). The capacity profiles (homogeneous, bimodal, Gaussian and log-normal) share a mean of 1 GFLOP/s, are truncated to [0.25, 1.75] GFLOP/s and are applied before Amdahl scaling; each analysis uses 10⁶ replications.
 
-These analyses support the evaluation of quantities such as:
+## Reproducing the figures and tables
 
-- client computation time;
-- training-round duration;
-- computational heterogeneity;
-- offered FL network load.
+<!-- Verify each row against the scripts that produced the figures of the manuscript. -->
 
----
+| Paper | Content | Code |
+|---|---|---|
+| Figs. 5–7, Tables 2–3 | Fitted distributions of the computational demand | `leaf-sync/plots_2026/` |
+| Fig. 8 | Effective capacities of the clients | `traces/convert_flops_to_trace.py` |
+| Figs. 9–10 | Accuracy vs. training rounds | `leaf-sync/plots_2026/` |
+| Figs. 11–13 | CDFs of computation and model-update arrival times | `traces/plot_cdf_computation_time.py` |
+| Figs. 14–15 | Total training time | `traces/plot_fl_training_time.py` |
+| Figs. 16–19, Tables 5–6 | Monte Carlo analysis | `speed_up_eval/` |
 
-## Installation
+## Scope and limitations
 
-The repository contains both Python and Go components.
-
-### Python Environment
-
-Create and activate a virtual environment:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-Install the root Python dependencies:
-
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-The modified LEAF component also contains its own dependency specification:
-
-```text
-leaf-sync/requirements.txt
-```
-
-Depending on the LEAF version and local environment, a separate Python environment may be preferable for `leaf-sync/`.
-
-### Go Environment
-
-From the repository root:
-
-```bash
-go mod download
-```
-
-Check the installed versions:
-
-```bash
-python --version
-go version
-```
-
----
-
-## Typical End-to-End Execution
-
-A typical experiment follows the sequence below.
-
-### Step 1 — Run the FL Application
-
-```bash
-cd leaf-sync/paper_experiments
-bash femnist.sh
-```
-
-or:
-
-```bash
-bash shakespeare.sh
-```
-
-Place the required system-metrics traces under:
-
-```text
-traces/sys/
-```
-
-### Step 2 — Inspect the Original Computational-Demand Traces
-
-From the repository root:
-
-```bash
-cd traces
-python plot_verificar_traces.py
-```
-
-### Step 3 — Convert FLOP/round into Local Computation Time
-
-```bash
-python convert_flops_to_trace.py
-```
-
-For the current Amdahl-enabled configuration, the processed traces are written to:
-
-```text
-sys_bimodal_amdahl/
-```
-
-### Step 4 — Inspect the Generated Computation-Time Traces
-
-```bash
-python plot_bimodal_traces.py
-```
-
-Configure the script to use `sys_bimodal_amdahl/` when analyzing the Amdahl-enabled traces.
-
-### Step 5 — Run TraceFL-Net-Sim
-
-Return to the repository root:
-
-```bash
-cd ..
-./run_simulation.sh
-```
-
-Per-seed network outputs are written under:
-
-```text
-traces/net/
-```
-
-### Step 6 — Combine the Network Outputs
-
-```bash
-cd traces
-python join_traces.py
-```
-
-Combined traces are written to:
-
-```text
-traces/net_join/
-```
-
-### Step 7 — Generate the Final Analyses
-
-```bash
-python plot_cdf_computation_time.py
-python plot_fl_training_time.py
-```
-
-The resulting figures are stored under:
-
-```text
-traces/figures/
-```
-
----
-
-## Modeling Scope
-
-TraceFL-Net-Sim is intended to evaluate the interaction between FL workload characteristics and communication-network constraints.
-
-The current model assumes:
-
-- synchronous, round-based FL;
-- fixed client processing capacity across training rounds;
-- computation time derived from per-round computational demand;
-- heterogeneous client processing capacities;
-- FCFS queueing;
-- configurable background traffic;
-- configurable probabilistic frame loss and retransmission;
-- a shared access-network bottleneck.
-
-Technology-specific MAC scheduling and bandwidth-allocation mechanisms are outside the current abstraction. Therefore, the reported delays characterize the configured shared access-network scenario rather than a specific 5G, Wi-Fi, or PON implementation.
-
----
+- **Orchestration.** Aggregation waits for all participating clients, so slow clients are never excluded. Deadline-based aggregation, in which late clients become stragglers, is future work.
+- **Buffers.** Queues are infinite, so no frame is lost to buffer overflow; losses come only from the probabilistic model. Finite buffers are future work.
+- **Beyond the access network.** The switch–CS path has a constant delay, so the results isolate contention in the access network. WAN delay variability (RTT, jitter, further bottlenecks) is not modeled and would lengthen the rounds.
+- **Access technology.** Link capacities and FCFS queues abstract a generic shared access network. Technology-specific MAC scheduling and bandwidth allocation (e.g., PON, 5G, Wi-Fi) are not modeled, so the delays are not predictions for a specific technology.
+- **Validation.** Traffic generation was validated against the discrete-event optical-network simulator of Ciceri et al. (IEEE Network, 2022). An independent validation of the latency measurements against ns-3 is future work.
 
 ## Citation
 
-If you use TraceFL-Net-Sim in your research, please cite the corresponding publication.
-
-Previous conference version:
+If you use TraceFL-Net-Sim, please cite:
 
 ```bibtex
+@unpublished{ciceri2025probabilistic,
+  author = {Ciceri-Coral, Oscar Jaime and Guerra Pedroso, Marco Aurelio and da Cunha, Diogo Maciel and da Fonseca, Nelson Luis Saldanha and Astudillo-Trujillo, Carlos Alberto},
+  title  = {Probabilistic Modeling and Performance Analysis of Federated Learning Traffic over Access Networks},
+  note   = {Submitted to the Journal of Internet Services and Applications (JISA)}
+}
+
 @inproceedings{cunha2025avaliaccao,
-  title={Avalia{\c{c}}{\~a}o de Desempenho de Aplica{\c{c}}{\~o}es de Aprendizado Federado em Redes de Acesso Compartilhadas},
-  author={Cunha, Diogo M. and Guerra, Marco A. and Ciceri, Oscar J. and da Fonseca, Nelson L. S. and Astudillo, Carlos A.},
-  booktitle={Workshop em Desempenho de Sistemas Computacionais e de Comunica{\c{c}}{\~a}o (WPerformance)},
-  pages={121--132},
-  year={2025},
-  organization={SBC}
+  title     = {Avalia{\c{c}}{\~a}o de Desempenho de Aplica{\c{c}}{\~o}es de Aprendizado Federado em Redes de Acesso Compartilhadas},
+  author    = {Cunha, Diogo M. and Guerra, Marco A. and Ciceri, Oscar J. and da Fonseca, Nelson L. S. and Astudillo, Carlos A.},
+  booktitle = {Anais do XXIV Workshop em Desempenho de Sistemas Computacionais e de Comunica{\c{c}}{\~a}o (WPerformance)},
+  pages     = {121--132},
+  year      = {2025},
+  publisher = {SBC},
+  doi       = {10.5753/wperformance.2025.9221}
 }
 ```
 
-The citation for the extended journal article will be added after publication.
-
----
-
 ## License
 
-The modified LEAF component includes its corresponding license under:
-
-```text
-leaf-sync/LICENSE.md
-```
-
-If the complete TraceFL-Net-Sim repository is distributed under a separate license, add the corresponding top-level `LICENSE` file and reference it here.
+`leaf-sync/` is derived from [LEAF](https://github.com/TalwalkarLab/leaf) (S. Caldas et al., *LEAF: A Benchmark for Federated Settings*, arXiv:1812.01097, 2018) and keeps its original license ([`leaf-sync/LICENSE.md`](leaf-sync/LICENSE.md)). The rest of the repository is distributed under the terms of the [`LICENSE`](LICENSE) file.
