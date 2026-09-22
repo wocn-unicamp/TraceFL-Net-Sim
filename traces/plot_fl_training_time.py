@@ -268,8 +268,8 @@ FIGURES = {
 # El script imprime ambos totales por semilla y avisa si difieren más de
 # EQUIVALENCE_REL_TOL (diferencia relativa).
 EQUIVALENCE_CHECKS = [
-    (("tx", "shakespeare", "1.0"), ("clients", "shakespeare", "20")),
-    (("tx", "femnist", "1.0"), ("clients", "femnist", "30")),
+    (("tx", "shakespeare", "1.0"), ("clients", "shakespeare", "10")),
+    (("tx", "femnist", "1.0"), ("clients", "femnist", "20")),
 ]
 EQUIVALENCE_REL_TOL = 1e-6
 
